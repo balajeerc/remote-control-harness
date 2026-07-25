@@ -594,12 +594,12 @@ mod tests {
         // Restrict → explicit default list; add appends a new origin once.
         c.set_paseo_origins_all(false);
         assert!(!c.paseo_allows_all_origins());
-        assert!(c.add_paseo_origin("  http://100.86.19.65:6767 "));
+        assert!(c.add_paseo_origin("  http://10.0.0.5:6767 "));
         assert!(c
             .paseo_allowed_origins
-            .contains(&"http://100.86.19.65:6767".to_owned()));
+            .contains(&"http://10.0.0.5:6767".to_owned()));
         assert!(
-            !c.add_paseo_origin("http://100.86.19.65:6767"),
+            !c.add_paseo_origin("http://10.0.0.5:6767"),
             "duplicate is a no-op"
         );
         assert!(!c.add_paseo_origin("   "), "blank is a no-op");

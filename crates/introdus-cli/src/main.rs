@@ -161,7 +161,7 @@ enum Command {
     PaseoUrl,
     /// Allow a browser origin to reach the direct-mode paseo daemon (CORS). The
     /// origin is the URL a browser loads the paseo UI from, e.g.
-    /// http://100.86.19.65:6767 (the host's IP + client port, not the phone's).
+    /// http://<host-ip>:6767 (the host's IP + client port, not the phone's).
     PaseoAllowOrigin {
         /// The browser origin to allow (scheme://host:port).
         origin: String,

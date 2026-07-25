@@ -178,12 +178,13 @@ fn prompt_origins(ui: &mut Ui) -> Result<bool> {
 const NODE_ADD_ORIGIN: &str = "node -e 'const fs=require(\"fs\");const f=process.env.HOME+\"/.paseo/config.json\";const c=JSON.parse(fs.readFileSync(f,\"utf8\"));c.daemon=c.daemon||{};c.daemon.cors=c.daemon.cors||{};const s=new Set((c.daemon.cors.allowedOrigins||[]).filter(o=>o!==\"*\"));s.add(process.env.PASEO_NEW_ORIGIN);c.daemon.cors.allowedOrigins=[...s];fs.writeFileSync(f,JSON.stringify(c,null,2)+\"\\n\");'";
 
 /// Panel action: prompt for a browser origin and allow it (direct mode only).
+/// The guidance goes to the output pane so the prompt line stays short enough to
+/// keep the typed URL on screen.
 pub fn add_origin(ctx: &LaunchContext, ui: &mut Ui) -> Result<()> {
-    let raw = ui.text(
-        "Client origin to allow — the URL a browser loads the paseo UI from, e.g. \
-         http://100.86.19.65:6767 (the HOST's IP + client port, NOT the phone's IP):",
-        false,
-    )?;
+    ui.log("  Allow a browser origin to reach the direct-mode paseo daemon.");
+    ui.log("  Enter the URL a browser loads the paseo UI from, e.g. http://<host-ip>:6767");
+    ui.log("  — the HOST's IP + the client's port, NOT the phone's IP.");
+    let raw = ui.text("Client origin (scheme://host:port):", false)?;
     allow_origin(ctx, ui, &raw)
 }
 
