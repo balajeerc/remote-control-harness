@@ -169,6 +169,9 @@ fn ta161_wizard_paseo_direct_mode_records_mode_and_skips_relay_host() {
     // Choose the DIRECT (VPN/zero-trust) connection mode.
     p.exp_string("DIRECT connection").unwrap();
     send(&mut p, "y");
+    // CORS: decline "allow ANY origin" → restrict to this machine's client.
+    p.exp_string("Allow ANY browser origin").unwrap();
+    send(&mut p, "n");
     finish_expose_ntfy(&mut p);
 
     let env = std::fs::read_to_string(fx.env_file()).unwrap();
@@ -176,9 +179,16 @@ fn ta161_wizard_paseo_direct_mode_records_mode_and_skips_relay_host() {
         env.contains("PASEO_MODE=\"direct\"") || env.contains("PASEO_MODE=direct"),
         "direct opt-in must record PASEO_MODE=direct:\n{env}"
     );
+    // No relay EGRESS host. Strip the CORS origin `https://app.paseo.sh` first so
+    // its substring doesn't masquerade as the bare relay host `paseo.sh`.
+    let egress = env.replace("app.paseo.sh", "");
     assert!(
-        !env.contains("paseo.sh"),
+        !egress.contains("paseo.sh"),
         "direct mode must NOT allowlist the relay host paseo.sh:\n{env}"
+    );
+    assert!(
+        env.contains("PASEO_ALLOWED_ORIGINS") && env.contains("127.0.0.1:6767"),
+        "restricted direct mode must seed the default CORS origin allowlist:\n{env}"
     );
 }
 

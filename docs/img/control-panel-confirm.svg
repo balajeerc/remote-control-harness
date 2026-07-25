@@ -1,5 +1,5 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="980" height="742" viewBox="0 0 980 742" font-family="'DejaVu Sans Mono','JetBrains Mono',Menlo,Consolas,'Liberation Mono',monospace">
-<rect x="0" y="0" width="980" height="742" rx="10" fill="#181825"/>
+<svg xmlns="http://www.w3.org/2000/svg" width="980" height="778" viewBox="0 0 980 778" font-family="'DejaVu Sans Mono','JetBrains Mono',Menlo,Consolas,'Liberation Mono',monospace">
+<rect x="0" y="0" width="980" height="778" rx="10" fill="#181825"/>
 <path d="M0 10 Q0 0 10 0 H970 Q980 0 980 10 V30 H0 Z" fill="#313244"/>
 <circle cx="18" cy="15" r="5.5" fill="#f38ba8"/>
 <circle cx="38" cy="15" r="5.5" fill="#f9e2af"/>
@@ -7,7 +7,7 @@
 <text x="490" y="20" fill="#9399b2" font-size="13" text-anchor="middle">introdus — confirmation prompt</text>
 <g transform="translate(14,44)">
 <rect x="8.5" y="0.0" width="85.0" height="18.0" fill="#89dceb"/>
-<rect x="85.0" y="648.0" width="34.0" height="18.0" fill="#89dceb"/>
+<rect x="85.0" y="684.0" width="34.0" height="18.0" fill="#89dceb"/>
 <text xml:space="preserve" x="0.0" y="14.0" fill="#89dceb" font-size="14" textLength="8.5" lengthAdjust="spacingAndGlyphs">╭</text>
 <text xml:space="preserve" x="8.5" y="14.0" fill="#11111b" font-size="14" textLength="85.0" lengthAdjust="spacingAndGlyphs"> introdus </text>
 <text xml:space="preserve" x="93.5" y="14.0" fill="#89dceb" font-size="14" textLength="76.5" lengthAdjust="spacingAndGlyphs" font-weight="bold"> control </text>
@@ -91,7 +91,7 @@
 <text xml:space="preserve" x="0.0" y="284.0" fill="#6c7086" font-size="14" textLength="25.5" lengthAdjust="spacingAndGlyphs">  [</text>
 <text xml:space="preserve" x="25.5" y="284.0" fill="#89dceb" font-size="14" textLength="8.5" lengthAdjust="spacingAndGlyphs" font-weight="bold">p</text>
 <text xml:space="preserve" x="34.0" y="284.0" fill="#6c7086" font-size="14" textLength="17.0" lengthAdjust="spacingAndGlyphs">] </text>
-<text xml:space="preserve" x="51.0" y="284.0" fill="#cdd6f4" font-size="14" textLength="408.0" lengthAdjust="spacingAndGlyphs">Install paseo (drive agents from your phone)    </text>
+<text xml:space="preserve" x="51.0" y="284.0" fill="#cdd6f4" font-size="14" textLength="408.0" lengthAdjust="spacingAndGlyphs">(Re)Install paseo (control agents from your phon</text>
 <text xml:space="preserve" x="459.0" y="284.0" fill="#6c7086" font-size="14" textLength="8.5" lengthAdjust="spacingAndGlyphs">│</text>
 <text xml:space="preserve" x="943.5" y="284.0" fill="#6c7086" font-size="14" textLength="8.5" lengthAdjust="spacingAndGlyphs">│</text>
 <text xml:space="preserve" x="0.0" y="302.0" fill="#6c7086" font-size="14" textLength="25.5" lengthAdjust="spacingAndGlyphs">  [</text>
@@ -100,87 +100,99 @@
 <text xml:space="preserve" x="51.0" y="302.0" fill="#cdd6f4" font-size="14" textLength="408.0" lengthAdjust="spacingAndGlyphs">Show paseo pairing QR code (connect your phone) </text>
 <text xml:space="preserve" x="459.0" y="302.0" fill="#6c7086" font-size="14" textLength="8.5" lengthAdjust="spacingAndGlyphs">│</text>
 <text xml:space="preserve" x="943.5" y="302.0" fill="#6c7086" font-size="14" textLength="8.5" lengthAdjust="spacingAndGlyphs">│</text>
-<text xml:space="preserve" x="0.0" y="320.0" fill="#6c7086" font-size="14" textLength="442.0" lengthAdjust="spacingAndGlyphs">  ──────────────────────────────────────────────────</text>
+<text xml:space="preserve" x="0.0" y="320.0" fill="#6c7086" font-size="14" textLength="25.5" lengthAdjust="spacingAndGlyphs">  [</text>
+<text xml:space="preserve" x="25.5" y="320.0" fill="#89dceb" font-size="14" textLength="8.5" lengthAdjust="spacingAndGlyphs" font-weight="bold">o</text>
+<text xml:space="preserve" x="34.0" y="320.0" fill="#6c7086" font-size="14" textLength="17.0" lengthAdjust="spacingAndGlyphs">] </text>
+<text xml:space="preserve" x="51.0" y="320.0" fill="#cdd6f4" font-size="14" textLength="408.0" lengthAdjust="spacingAndGlyphs">Add a paseo client origin (direct-mode browser a</text>
 <text xml:space="preserve" x="459.0" y="320.0" fill="#6c7086" font-size="14" textLength="8.5" lengthAdjust="spacingAndGlyphs">│</text>
 <text xml:space="preserve" x="943.5" y="320.0" fill="#6c7086" font-size="14" textLength="8.5" lengthAdjust="spacingAndGlyphs">│</text>
-<text xml:space="preserve" x="0.0" y="338.0" fill="#f5c2e7" font-size="14" textLength="25.5" lengthAdjust="spacingAndGlyphs" font-weight="bold"> ⇅ </text>
-<text xml:space="preserve" x="25.5" y="338.0" fill="#89b4fa" font-size="14" textLength="238.0" lengthAdjust="spacingAndGlyphs" font-weight="bold">Networking &amp; egress security</text>
+<text xml:space="preserve" x="0.0" y="338.0" fill="#6c7086" font-size="14" textLength="442.0" lengthAdjust="spacingAndGlyphs">  ──────────────────────────────────────────────────</text>
 <text xml:space="preserve" x="459.0" y="338.0" fill="#6c7086" font-size="14" textLength="8.5" lengthAdjust="spacingAndGlyphs">│</text>
 <text xml:space="preserve" x="943.5" y="338.0" fill="#6c7086" font-size="14" textLength="8.5" lengthAdjust="spacingAndGlyphs">│</text>
-<text xml:space="preserve" x="0.0" y="356.0" fill="#6c7086" font-size="14" textLength="25.5" lengthAdjust="spacingAndGlyphs">  [</text>
-<text xml:space="preserve" x="25.5" y="356.0" fill="#89dceb" font-size="14" textLength="8.5" lengthAdjust="spacingAndGlyphs" font-weight="bold">b</text>
-<text xml:space="preserve" x="34.0" y="356.0" fill="#6c7086" font-size="14" textLength="17.0" lengthAdjust="spacingAndGlyphs">] </text>
-<text xml:space="preserve" x="51.0" y="356.0" fill="#cdd6f4" font-size="14" textLength="408.0" lengthAdjust="spacingAndGlyphs">List recently blocked egress URLs               </text>
+<text xml:space="preserve" x="0.0" y="356.0" fill="#f5c2e7" font-size="14" textLength="25.5" lengthAdjust="spacingAndGlyphs" font-weight="bold"> ⇅ </text>
+<text xml:space="preserve" x="25.5" y="356.0" fill="#89b4fa" font-size="14" textLength="238.0" lengthAdjust="spacingAndGlyphs" font-weight="bold">Networking &amp; egress security</text>
 <text xml:space="preserve" x="459.0" y="356.0" fill="#6c7086" font-size="14" textLength="8.5" lengthAdjust="spacingAndGlyphs">│</text>
 <text xml:space="preserve" x="943.5" y="356.0" fill="#6c7086" font-size="14" textLength="8.5" lengthAdjust="spacingAndGlyphs">│</text>
 <text xml:space="preserve" x="0.0" y="374.0" fill="#6c7086" font-size="14" textLength="25.5" lengthAdjust="spacingAndGlyphs">  [</text>
-<text xml:space="preserve" x="25.5" y="374.0" fill="#89dceb" font-size="14" textLength="8.5" lengthAdjust="spacingAndGlyphs" font-weight="bold">w</text>
+<text xml:space="preserve" x="25.5" y="374.0" fill="#89dceb" font-size="14" textLength="8.5" lengthAdjust="spacingAndGlyphs" font-weight="bold">b</text>
 <text xml:space="preserve" x="34.0" y="374.0" fill="#6c7086" font-size="14" textLength="17.0" lengthAdjust="spacingAndGlyphs">] </text>
-<text xml:space="preserve" x="51.0" y="374.0" fill="#cdd6f4" font-size="14" textLength="408.0" lengthAdjust="spacingAndGlyphs">Add hostnames to the egress allowlist           </text>
+<text xml:space="preserve" x="51.0" y="374.0" fill="#cdd6f4" font-size="14" textLength="408.0" lengthAdjust="spacingAndGlyphs">List recently blocked egress URLs               </text>
 <text xml:space="preserve" x="459.0" y="374.0" fill="#6c7086" font-size="14" textLength="8.5" lengthAdjust="spacingAndGlyphs">│</text>
 <text xml:space="preserve" x="943.5" y="374.0" fill="#6c7086" font-size="14" textLength="8.5" lengthAdjust="spacingAndGlyphs">│</text>
 <text xml:space="preserve" x="0.0" y="392.0" fill="#6c7086" font-size="14" textLength="25.5" lengthAdjust="spacingAndGlyphs">  [</text>
-<text xml:space="preserve" x="25.5" y="392.0" fill="#89dceb" font-size="14" textLength="8.5" lengthAdjust="spacingAndGlyphs" font-weight="bold">e</text>
+<text xml:space="preserve" x="25.5" y="392.0" fill="#89dceb" font-size="14" textLength="8.5" lengthAdjust="spacingAndGlyphs" font-weight="bold">w</text>
 <text xml:space="preserve" x="34.0" y="392.0" fill="#6c7086" font-size="14" textLength="17.0" lengthAdjust="spacingAndGlyphs">] </text>
-<text xml:space="preserve" x="51.0" y="392.0" fill="#cdd6f4" font-size="14" textLength="408.0" lengthAdjust="spacingAndGlyphs">(Re)Expose app via Cloudflare Tunnel            </text>
+<text xml:space="preserve" x="51.0" y="392.0" fill="#cdd6f4" font-size="14" textLength="408.0" lengthAdjust="spacingAndGlyphs">Add hostnames to the egress allowlist           </text>
 <text xml:space="preserve" x="459.0" y="392.0" fill="#6c7086" font-size="14" textLength="8.5" lengthAdjust="spacingAndGlyphs">│</text>
 <text xml:space="preserve" x="943.5" y="392.0" fill="#6c7086" font-size="14" textLength="8.5" lengthAdjust="spacingAndGlyphs">│</text>
 <text xml:space="preserve" x="0.0" y="410.0" fill="#6c7086" font-size="14" textLength="25.5" lengthAdjust="spacingAndGlyphs">  [</text>
-<text xml:space="preserve" x="25.5" y="410.0" fill="#89dceb" font-size="14" textLength="8.5" lengthAdjust="spacingAndGlyphs" font-weight="bold">u</text>
+<text xml:space="preserve" x="25.5" y="410.0" fill="#89dceb" font-size="14" textLength="8.5" lengthAdjust="spacingAndGlyphs" font-weight="bold">e</text>
 <text xml:space="preserve" x="34.0" y="410.0" fill="#6c7086" font-size="14" textLength="17.0" lengthAdjust="spacingAndGlyphs">] </text>
-<text xml:space="preserve" x="51.0" y="410.0" fill="#cdd6f4" font-size="14" textLength="408.0" lengthAdjust="spacingAndGlyphs">Show tunnel URL                                 </text>
+<text xml:space="preserve" x="51.0" y="410.0" fill="#cdd6f4" font-size="14" textLength="408.0" lengthAdjust="spacingAndGlyphs">(Re)Expose app via Cloudflare Tunnel            </text>
 <text xml:space="preserve" x="459.0" y="410.0" fill="#6c7086" font-size="14" textLength="8.5" lengthAdjust="spacingAndGlyphs">│</text>
 <text xml:space="preserve" x="943.5" y="410.0" fill="#6c7086" font-size="14" textLength="8.5" lengthAdjust="spacingAndGlyphs">│</text>
 <text xml:space="preserve" x="0.0" y="428.0" fill="#6c7086" font-size="14" textLength="25.5" lengthAdjust="spacingAndGlyphs">  [</text>
-<text xml:space="preserve" x="25.5" y="428.0" fill="#89dceb" font-size="14" textLength="8.5" lengthAdjust="spacingAndGlyphs" font-weight="bold">n</text>
+<text xml:space="preserve" x="25.5" y="428.0" fill="#89dceb" font-size="14" textLength="8.5" lengthAdjust="spacingAndGlyphs" font-weight="bold">u</text>
 <text xml:space="preserve" x="34.0" y="428.0" fill="#6c7086" font-size="14" textLength="17.0" lengthAdjust="spacingAndGlyphs">] </text>
-<text xml:space="preserve" x="51.0" y="428.0" fill="#cdd6f4" font-size="14" textLength="408.0" lengthAdjust="spacingAndGlyphs">Enable ntfy.sh mobile notifications             </text>
+<text xml:space="preserve" x="51.0" y="428.0" fill="#cdd6f4" font-size="14" textLength="408.0" lengthAdjust="spacingAndGlyphs">Show tunnel URL                                 </text>
 <text xml:space="preserve" x="459.0" y="428.0" fill="#6c7086" font-size="14" textLength="8.5" lengthAdjust="spacingAndGlyphs">│</text>
 <text xml:space="preserve" x="943.5" y="428.0" fill="#6c7086" font-size="14" textLength="8.5" lengthAdjust="spacingAndGlyphs">│</text>
-<text xml:space="preserve" x="0.0" y="446.0" fill="#6c7086" font-size="14" textLength="442.0" lengthAdjust="spacingAndGlyphs">  ──────────────────────────────────────────────────</text>
+<text xml:space="preserve" x="0.0" y="446.0" fill="#6c7086" font-size="14" textLength="25.5" lengthAdjust="spacingAndGlyphs">  [</text>
+<text xml:space="preserve" x="25.5" y="446.0" fill="#89dceb" font-size="14" textLength="8.5" lengthAdjust="spacingAndGlyphs" font-weight="bold">n</text>
+<text xml:space="preserve" x="34.0" y="446.0" fill="#6c7086" font-size="14" textLength="17.0" lengthAdjust="spacingAndGlyphs">] </text>
+<text xml:space="preserve" x="51.0" y="446.0" fill="#cdd6f4" font-size="14" textLength="408.0" lengthAdjust="spacingAndGlyphs">Enable ntfy.sh mobile notifications             </text>
 <text xml:space="preserve" x="459.0" y="446.0" fill="#6c7086" font-size="14" textLength="8.5" lengthAdjust="spacingAndGlyphs">│</text>
 <text xml:space="preserve" x="943.5" y="446.0" fill="#6c7086" font-size="14" textLength="8.5" lengthAdjust="spacingAndGlyphs">│</text>
-<text xml:space="preserve" x="0.0" y="464.0" fill="#f5c2e7" font-size="14" textLength="25.5" lengthAdjust="spacingAndGlyphs" font-weight="bold"> ? </text>
-<text xml:space="preserve" x="25.5" y="464.0" fill="#89b4fa" font-size="14" textLength="127.5" lengthAdjust="spacingAndGlyphs" font-weight="bold">Troubleshooting</text>
+<text xml:space="preserve" x="0.0" y="464.0" fill="#6c7086" font-size="14" textLength="442.0" lengthAdjust="spacingAndGlyphs">  ──────────────────────────────────────────────────</text>
 <text xml:space="preserve" x="459.0" y="464.0" fill="#6c7086" font-size="14" textLength="8.5" lengthAdjust="spacingAndGlyphs">│</text>
 <text xml:space="preserve" x="943.5" y="464.0" fill="#6c7086" font-size="14" textLength="8.5" lengthAdjust="spacingAndGlyphs">│</text>
-<text xml:space="preserve" x="0.0" y="482.0" fill="#6c7086" font-size="14" textLength="25.5" lengthAdjust="spacingAndGlyphs">  [</text>
-<text xml:space="preserve" x="25.5" y="482.0" fill="#89dceb" font-size="14" textLength="8.5" lengthAdjust="spacingAndGlyphs" font-weight="bold">f</text>
-<text xml:space="preserve" x="34.0" y="482.0" fill="#6c7086" font-size="14" textLength="17.0" lengthAdjust="spacingAndGlyphs">] </text>
-<text xml:space="preserve" x="51.0" y="482.0" fill="#cdd6f4" font-size="14" textLength="408.0" lengthAdjust="spacingAndGlyphs">Refresh container status                        </text>
+<text xml:space="preserve" x="0.0" y="482.0" fill="#f5c2e7" font-size="14" textLength="25.5" lengthAdjust="spacingAndGlyphs" font-weight="bold"> ? </text>
+<text xml:space="preserve" x="25.5" y="482.0" fill="#89b4fa" font-size="14" textLength="127.5" lengthAdjust="spacingAndGlyphs" font-weight="bold">Troubleshooting</text>
 <text xml:space="preserve" x="459.0" y="482.0" fill="#6c7086" font-size="14" textLength="8.5" lengthAdjust="spacingAndGlyphs">│</text>
 <text xml:space="preserve" x="943.5" y="482.0" fill="#6c7086" font-size="14" textLength="8.5" lengthAdjust="spacingAndGlyphs">│</text>
 <text xml:space="preserve" x="0.0" y="500.0" fill="#6c7086" font-size="14" textLength="25.5" lengthAdjust="spacingAndGlyphs">  [</text>
-<text xml:space="preserve" x="25.5" y="500.0" fill="#89dceb" font-size="14" textLength="8.5" lengthAdjust="spacingAndGlyphs" font-weight="bold">N</text>
+<text xml:space="preserve" x="25.5" y="500.0" fill="#89dceb" font-size="14" textLength="8.5" lengthAdjust="spacingAndGlyphs" font-weight="bold">f</text>
 <text xml:space="preserve" x="34.0" y="500.0" fill="#6c7086" font-size="14" textLength="17.0" lengthAdjust="spacingAndGlyphs">] </text>
-<text xml:space="preserve" x="51.0" y="500.0" fill="#cdd6f4" font-size="14" textLength="408.0" lengthAdjust="spacingAndGlyphs">Send a test notification to host                </text>
+<text xml:space="preserve" x="51.0" y="500.0" fill="#cdd6f4" font-size="14" textLength="408.0" lengthAdjust="spacingAndGlyphs">Refresh container status                        </text>
 <text xml:space="preserve" x="459.0" y="500.0" fill="#6c7086" font-size="14" textLength="8.5" lengthAdjust="spacingAndGlyphs">│</text>
 <text xml:space="preserve" x="943.5" y="500.0" fill="#6c7086" font-size="14" textLength="8.5" lengthAdjust="spacingAndGlyphs">│</text>
 <text xml:space="preserve" x="0.0" y="518.0" fill="#6c7086" font-size="14" textLength="25.5" lengthAdjust="spacingAndGlyphs">  [</text>
-<text xml:space="preserve" x="25.5" y="518.0" fill="#89dceb" font-size="14" textLength="8.5" lengthAdjust="spacingAndGlyphs" font-weight="bold">l</text>
+<text xml:space="preserve" x="25.5" y="518.0" fill="#89dceb" font-size="14" textLength="8.5" lengthAdjust="spacingAndGlyphs" font-weight="bold">N</text>
 <text xml:space="preserve" x="34.0" y="518.0" fill="#6c7086" font-size="14" textLength="17.0" lengthAdjust="spacingAndGlyphs">] </text>
-<text xml:space="preserve" x="51.0" y="518.0" fill="#cdd6f4" font-size="14" textLength="408.0" lengthAdjust="spacingAndGlyphs">Show the notification log                       </text>
+<text xml:space="preserve" x="51.0" y="518.0" fill="#cdd6f4" font-size="14" textLength="408.0" lengthAdjust="spacingAndGlyphs">Send a test notification to host                </text>
 <text xml:space="preserve" x="459.0" y="518.0" fill="#6c7086" font-size="14" textLength="8.5" lengthAdjust="spacingAndGlyphs">│</text>
 <text xml:space="preserve" x="943.5" y="518.0" fill="#6c7086" font-size="14" textLength="8.5" lengthAdjust="spacingAndGlyphs">│</text>
 <text xml:space="preserve" x="0.0" y="536.0" fill="#6c7086" font-size="14" textLength="25.5" lengthAdjust="spacingAndGlyphs">  [</text>
-<text xml:space="preserve" x="25.5" y="536.0" fill="#89dceb" font-size="14" textLength="8.5" lengthAdjust="spacingAndGlyphs" font-weight="bold">v</text>
+<text xml:space="preserve" x="25.5" y="536.0" fill="#89dceb" font-size="14" textLength="8.5" lengthAdjust="spacingAndGlyphs" font-weight="bold">l</text>
 <text xml:space="preserve" x="34.0" y="536.0" fill="#6c7086" font-size="14" textLength="17.0" lengthAdjust="spacingAndGlyphs">] </text>
-<text xml:space="preserve" x="51.0" y="536.0" fill="#cdd6f4" font-size="14" textLength="408.0" lengthAdjust="spacingAndGlyphs">Restart the notification service                </text>
+<text xml:space="preserve" x="51.0" y="536.0" fill="#cdd6f4" font-size="14" textLength="408.0" lengthAdjust="spacingAndGlyphs">Show the notification log                       </text>
 <text xml:space="preserve" x="459.0" y="536.0" fill="#6c7086" font-size="14" textLength="8.5" lengthAdjust="spacingAndGlyphs">│</text>
 <text xml:space="preserve" x="943.5" y="536.0" fill="#6c7086" font-size="14" textLength="8.5" lengthAdjust="spacingAndGlyphs">│</text>
-<text xml:space="preserve" x="0.0" y="554.0" fill="#6c7086" font-size="14" textLength="442.0" lengthAdjust="spacingAndGlyphs">  ──────────────────────────────────────────────────</text>
+<text xml:space="preserve" x="0.0" y="554.0" fill="#6c7086" font-size="14" textLength="25.5" lengthAdjust="spacingAndGlyphs">  [</text>
+<text xml:space="preserve" x="25.5" y="554.0" fill="#89dceb" font-size="14" textLength="8.5" lengthAdjust="spacingAndGlyphs" font-weight="bold">v</text>
+<text xml:space="preserve" x="34.0" y="554.0" fill="#6c7086" font-size="14" textLength="17.0" lengthAdjust="spacingAndGlyphs">] </text>
+<text xml:space="preserve" x="51.0" y="554.0" fill="#cdd6f4" font-size="14" textLength="408.0" lengthAdjust="spacingAndGlyphs">Restart the notification service                </text>
 <text xml:space="preserve" x="459.0" y="554.0" fill="#6c7086" font-size="14" textLength="8.5" lengthAdjust="spacingAndGlyphs">│</text>
 <text xml:space="preserve" x="943.5" y="554.0" fill="#6c7086" font-size="14" textLength="8.5" lengthAdjust="spacingAndGlyphs">│</text>
-<text xml:space="preserve" x="0.0" y="572.0" fill="#f5c2e7" font-size="14" textLength="25.5" lengthAdjust="spacingAndGlyphs" font-weight="bold"> ↻ </text>
-<text xml:space="preserve" x="25.5" y="572.0" fill="#89b4fa" font-size="14" textLength="161.5" lengthAdjust="spacingAndGlyphs" font-weight="bold">Container lifecycle</text>
-<text xml:space="preserve" x="459.0" y="572.0" fill="#6c7086" font-size="14" textLength="493.0" lengthAdjust="spacingAndGlyphs">╰────────────────────────────────────────────────────────╯</text>
-<text xml:space="preserve" x="0.0" y="590.0" fill="#89dceb" font-size="14" textLength="952.0" lengthAdjust="spacingAndGlyphs"> prompt ────────────────────────────────────────────────────────────────────────────────────────────────────────</text>
-<text xml:space="preserve" x="0.0" y="608.0" fill="#89dceb" font-size="14" textLength="17.0" lengthAdjust="spacingAndGlyphs" font-weight="bold">? </text>
-<text xml:space="preserve" x="17.0" y="608.0" fill="#cdd6f4" font-size="14" textLength="875.5" lengthAdjust="spacingAndGlyphs" font-weight="bold">Destroy/Reset introdus-brave-swift-otter and permanently wipe its /home/dev volume (repo, node_modules,</text>
-<text xml:space="preserve" x="0.0" y="626.0" fill="#cdd6f4" font-size="14" textLength="102.0" lengthAdjust="spacingAndGlyphs" font-weight="bold">toolchains)?</text>
-<text xml:space="preserve" x="17.0" y="662.0" fill="#6c7086" font-size="14" textLength="68.0" lengthAdjust="spacingAndGlyphs"> Yes  / </text>
-<text xml:space="preserve" x="85.0" y="662.0" fill="#181825" font-size="14" textLength="34.0" lengthAdjust="spacingAndGlyphs" font-weight="bold"> No </text>
-<text xml:space="preserve" x="119.0" y="662.0" fill="#6c7086" font-size="14" textLength="187.0" lengthAdjust="spacingAndGlyphs">   (y/n · ←/→ · Enter)</text>
-<text xml:space="preserve" x="0.0" y="680.0" fill="#6c7086" font-size="14" textLength="756.5" lengthAdjust="spacingAndGlyphs">press a key to run · / filter · ↑/↓ move · Enter select · Esc detach · Ctrl-a ⟨n⟩ windows</text>
+<text xml:space="preserve" x="0.0" y="572.0" fill="#6c7086" font-size="14" textLength="442.0" lengthAdjust="spacingAndGlyphs">  ──────────────────────────────────────────────────</text>
+<text xml:space="preserve" x="459.0" y="572.0" fill="#6c7086" font-size="14" textLength="8.5" lengthAdjust="spacingAndGlyphs">│</text>
+<text xml:space="preserve" x="943.5" y="572.0" fill="#6c7086" font-size="14" textLength="8.5" lengthAdjust="spacingAndGlyphs">│</text>
+<text xml:space="preserve" x="0.0" y="590.0" fill="#f5c2e7" font-size="14" textLength="25.5" lengthAdjust="spacingAndGlyphs" font-weight="bold"> ↻ </text>
+<text xml:space="preserve" x="25.5" y="590.0" fill="#89b4fa" font-size="14" textLength="161.5" lengthAdjust="spacingAndGlyphs" font-weight="bold">Container lifecycle</text>
+<text xml:space="preserve" x="459.0" y="590.0" fill="#6c7086" font-size="14" textLength="8.5" lengthAdjust="spacingAndGlyphs">│</text>
+<text xml:space="preserve" x="943.5" y="590.0" fill="#6c7086" font-size="14" textLength="8.5" lengthAdjust="spacingAndGlyphs">│</text>
+<text xml:space="preserve" x="0.0" y="608.0" fill="#6c7086" font-size="14" textLength="25.5" lengthAdjust="spacingAndGlyphs">  [</text>
+<text xml:space="preserve" x="25.5" y="608.0" fill="#89dceb" font-size="14" textLength="8.5" lengthAdjust="spacingAndGlyphs" font-weight="bold">s</text>
+<text xml:space="preserve" x="34.0" y="608.0" fill="#6c7086" font-size="14" textLength="17.0" lengthAdjust="spacingAndGlyphs">] </text>
+<text xml:space="preserve" x="51.0" y="608.0" fill="#cdd6f4" font-size="14" textLength="408.0" lengthAdjust="spacingAndGlyphs">Restart the container                           </text>
+<text xml:space="preserve" x="459.0" y="608.0" fill="#6c7086" font-size="14" textLength="493.0" lengthAdjust="spacingAndGlyphs">╰────────────────────────────────────────────────────────╯</text>
+<text xml:space="preserve" x="0.0" y="626.0" fill="#89dceb" font-size="14" textLength="952.0" lengthAdjust="spacingAndGlyphs"> prompt ────────────────────────────────────────────────────────────────────────────────────────────────────────</text>
+<text xml:space="preserve" x="0.0" y="644.0" fill="#89dceb" font-size="14" textLength="17.0" lengthAdjust="spacingAndGlyphs" font-weight="bold">? </text>
+<text xml:space="preserve" x="17.0" y="644.0" fill="#cdd6f4" font-size="14" textLength="875.5" lengthAdjust="spacingAndGlyphs" font-weight="bold">Destroy/Reset introdus-brave-swift-otter and permanently wipe its /home/dev volume (repo, node_modules,</text>
+<text xml:space="preserve" x="0.0" y="662.0" fill="#cdd6f4" font-size="14" textLength="102.0" lengthAdjust="spacingAndGlyphs" font-weight="bold">toolchains)?</text>
+<text xml:space="preserve" x="17.0" y="698.0" fill="#6c7086" font-size="14" textLength="68.0" lengthAdjust="spacingAndGlyphs"> Yes  / </text>
+<text xml:space="preserve" x="85.0" y="698.0" fill="#181825" font-size="14" textLength="34.0" lengthAdjust="spacingAndGlyphs" font-weight="bold"> No </text>
+<text xml:space="preserve" x="119.0" y="698.0" fill="#6c7086" font-size="14" textLength="187.0" lengthAdjust="spacingAndGlyphs">   (y/n · ←/→ · Enter)</text>
+<text xml:space="preserve" x="0.0" y="716.0" fill="#6c7086" font-size="14" textLength="756.5" lengthAdjust="spacingAndGlyphs">press a key to run · / filter · ↑/↓ move · Enter select · Esc detach · Ctrl-a ⟨n⟩ windows</text>
 </g>
 </svg>

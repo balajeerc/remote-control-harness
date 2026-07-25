@@ -278,8 +278,12 @@ fn demo_menu_rows() -> Vec<Row> {
         &[
             ('a', "Launch an installed agent (tmux window)"),
             ('i', "Install a coding agent"),
-            ('p', "Install paseo (drive agents from your phone)"),
+            ('p', "(Re)Install paseo (control agents from your phone)"),
             ('P', "Show paseo pairing QR code (connect your phone)"),
+            (
+                'o',
+                "Add a paseo client origin (direct-mode browser access)",
+            ),
         ],
         &mut rows,
     );
@@ -336,20 +340,20 @@ fn shot_control_panel() {
         String::new(),
         "  (also written to the dev-container log)".to_owned(),
     ];
-    // sel 10 = "Show tunnel URL" (the 11th selectable item), matching the output.
+    // sel 11 = "Show tunnel URL" (the 12th selectable item), matching the output.
     // Height fits the full five-section menu + status header + footer.
     capture(
         "control-panel",
         "introdus — control panel",
         112,
-        38,
+        40,
         |f| {
             let m = MenuView {
                 status: &status,
                 rows: &rows,
                 query: "",
                 filtering: false,
-                sel: 10,
+                sel: 11,
             };
             draw_frame(f, &m, &out, None, None);
         },
@@ -367,19 +371,19 @@ fn shot_control_panel_confirm() {
                  /home/dev volume (repo, node_modules, toolchains)?",
         answer: false,
     };
-    // sel 19 = "Destroy/Reset the container", matching the prompt.
+    // sel 20 = "Destroy/Reset the container", matching the prompt.
     capture(
         "control-panel-confirm",
         "introdus — confirmation prompt",
         112,
-        38,
+        40,
         |f| {
             let m = MenuView {
                 status: &status,
                 rows: &rows,
                 query: "",
                 filtering: false,
-                sel: 19,
+                sel: 20,
             };
             draw_frame(f, &m, &out, Some(&popup), None);
         },

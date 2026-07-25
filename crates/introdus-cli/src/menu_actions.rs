@@ -218,140 +218,6 @@ pub(crate) fn yolo_flag(yolo: agents::Yolo) -> Option<&'static str> {
     }
 }
 
-/// Shell snippet that ensures the paseo daemon is running, for prefixing an
-/// interactive window command. `paseo daemon status` exits 0 whether the daemon
-/// is running OR stopped, so `status || start` never starts it (and `start` errors
-/// noisily when already up); gate on the `localDaemon` field of the JSON status
-/// instead. Without a running daemon the relay never connects and phone pairing
-/// times out.
-///
-/// A non-zero `paseo daemon start` is NOT authoritative. Its readiness gate can
-/// report "Daemon failed to start in background (exit code 1)" even though the
-/// worker actually came up and is serving on :6767 — e.g. a slow first relay
-/// handshake trips the gate. So we never treat `start`'s exit code as fatal:
-/// after attempting it we re-probe the daemon status and treat a running daemon
-/// as success. Only if it is genuinely still down do we make one more start
-/// attempt (the warm retry that succeeds by hand).
-pub(crate) const PASEO_ENSURE_DAEMON: &str = concat!(
-    r#"_paseo_up(){ paseo daemon status --json 2>/dev/null | grep -Eq '"localDaemon":[[:space:]]*"running"'; }; "#,
-    r#"_paseo_up || paseo daemon start || true; "#,
-    r#"_paseo_up || paseo daemon start || true; "#,
-    r#"_paseo_up || echo 'paseo: daemon still not up after two attempts — see ~/.paseo/daemon.log'"#,
-);
-
-// ---- paseo orchestrator -----------------------------------------------------
-
-/// Install the paseo orchestrator into the running container and record the
-/// opt-in (`INSTALL_PASEO=true` + its relay egress host), so agents become
-/// launchable via paseo and phone pairing works.
-pub fn install_paseo(ctx: &LaunchContext, ui: &mut Ui) -> Result<()> {
-    require_running(ctx)?;
-    if ctx.config.install_paseo && container_has_cmd(ctx, agents::paseo::CMD) {
-        ui.log("  paseo is already installed and enabled.");
-        return Ok(());
-    }
-    if !ui.confirm(
-        "Install paseo? It runs your agents and lets you drive them from a phone/desktop.",
-        true,
-    )? {
-        return Ok(());
-    }
-    // Record the opt-in + allow the paseo host at the proxy, and rewrite the
-    // bind-mounted allowlist. No restart here: paseo's daemon reaches the relay
-    // over a WebSocket that ignores the proxy, so it needs an nft IP bypass
-    // (PASEO_RELAY_IPS) — and container env is frozen at create, so only a
-    // *recreate* installs that hole. A plain restart would re-run the entrypoint
-    // with the old (paseo-less) env and pairing would still time out.
-    let mut config = ctx.config.clone();
-    paseo_opt_in(&mut config);
-    save_and_write_allowlist(ctx, ui, config, "enabled paseo (INSTALL_PASEO=true)")?;
-
-    // Offer the recreate that bakes in the relay bypass. The fresh container's
-    // setup installs paseo (idempotent) and resolves relay.paseo.sh into the nft
-    // allowlist, so the daemon can dial out and a phone can pair.
-    if podman::container_running(&ctx.container_name)
-        && ui.confirm(
-            "Recreate the container now to apply paseo's relay access (needed for phone pairing)?",
-            false,
-        )?
-    {
-        remove_container_task(ctx, ui, "recreating the container")?;
-        return respawn_dev_window(ctx, ui);
-    }
-
-    // Declined (or no container running): install the CLI into the current
-    // container so paseo works locally, but be explicit that pairing won't work
-    // until a recreate wires the relay bypass.
-    run_install_paseo(ctx, ui)?;
-    if !container_has_cmd(ctx, agents::paseo::CMD) {
-        bail!("paseo isn't installed — check `egress-log` for a blocked host, then retry");
-    }
-    ui.log("  paseo installed. NOTE: phone pairing needs the relay bypass, which only a");
-    ui.log("  container recreate wires — until you recreate, the daemon can't reach the relay.");
-    Ok(())
-}
-
-/// The paseo "connect" panel action. In relay mode it opens a tmux window that
-/// starts the daemon and prints the pairing QR (the daemon dials out to the
-/// relay; nothing is exposed inbound). In direct mode there is no QR — the daemon
-/// is reached over plain TCP on your VPN — so it prints the port + password
-/// instead.
-pub fn paseo_qr(ctx: &LaunchContext, ui: &mut Ui) -> Result<()> {
-    require_running(ctx)?;
-    if !container_has_cmd(ctx, agents::paseo::CMD) {
-        bail!("paseo isn't installed — run 'Install paseo (drive agents from your phone)' first");
-    }
-    if ctx.config.paseo_mode.is_direct() {
-        for line in agents::paseo::direct_connection_help(
-            ctx.config.paseo_port,
-            ctx.config.paseo_password.as_deref(),
-        ) {
-            ui.log(format!("  {line}"));
-        }
-        return Ok(());
-    }
-    // Relay mode: ensure the daemon is up, print the pairing QR (paseo renders it
-    // natively), then drop to a shell so the code stays on screen long enough to
-    // scan.
-    let inner = format!("{PASEO_ENSURE_DAEMON}; paseo daemon pair; exec bash");
-    let cmd = exec_interactive(&ctx.container_name, Some("dev"))
-        .args(["bash", "-lc", &inner])
-        .shell_line()
-        .to_owned();
-    ui.log("  opening the pairing QR — scan it from the paseo app to connect your phone.");
-    spawn_window(ctx, ui, "paseo-qr", &cmd)
-}
-
-/// Stream `install-agents` with only the paseo opt-in set. `INSTALL_AGENTS=` is
-/// passed empty so the installer touches paseo alone and leaves the agent list
-/// untouched (an unset `INSTALL_AGENTS` would default to installing claude).
-pub(crate) fn run_install_paseo(ctx: &LaunchContext, f: &mut impl Frontend) -> Result<()> {
-    f.run_task(
-        "install-agents (paseo)",
-        exec(ctx, Some("dev"))
-            .arg("env")
-            .arg("INSTALL_AGENTS=")
-            .arg("INSTALL_PASEO=true")
-            .arg("install-agents"),
-    )
-}
-
-/// Record the paseo opt-in on `config`: set `INSTALL_PASEO=true` and add paseo's
-/// proxy-allowlist host (idempotently). Shared by the menu and CLI opt-in flows;
-/// the caller still persists the config and rewrites the allowlist.
-pub(crate) fn paseo_opt_in(config: &mut Config) {
-    config.install_paseo = true;
-    // Direct mode never reaches paseo's relay/app hosts (it's a VPN-local TCP
-    // connection; install is via the npm registry, already allowed), so don't
-    // widen egress with paseo.sh. Callers set `paseo_mode` before opting in.
-    if !config.paseo_mode.is_direct() {
-        let host = agents::paseo::HOST.to_owned();
-        if !config.whitelist_hosts.contains(&host) {
-            config.whitelist_hosts.push(host);
-        }
-    }
-}
-
 // ---- egress allowlist -------------------------------------------------------
 
 /// Append hostnames to `WHITELIST_HOSTS`, regenerate the allowlist file, and
@@ -695,7 +561,7 @@ pub(crate) fn require_running(ctx: &LaunchContext) -> Result<()> {
 /// the panel shows an animated `working: <label>…` footer and stays responsive
 /// during the ~10s SIGTERM→SIGKILL teardown, instead of freezing on a blocking
 /// `.run()`. No-op if the container is already gone.
-fn remove_container_task(ctx: &LaunchContext, ui: &mut Ui, label: &str) -> Result<()> {
+pub(crate) fn remove_container_task(ctx: &LaunchContext, ui: &mut Ui, label: &str) -> Result<()> {
     if podman::container_exists(&ctx.container_name) {
         ui.run_task(label, podman().args(["rm", "-f", &ctx.container_name]))?;
     }
@@ -733,7 +599,12 @@ pub(crate) fn session_of(ctx: &LaunchContext) -> String {
 }
 
 /// Open (and focus) a new tmux window running `cmd`.
-fn spawn_window(ctx: &LaunchContext, ui: &mut Ui, window: &str, cmd: &str) -> Result<()> {
+pub(crate) fn spawn_window(
+    ctx: &LaunchContext,
+    ui: &mut Ui,
+    window: &str,
+    cmd: &str,
+) -> Result<()> {
     let session = session_of(ctx);
     tmux::new_window(&session, window, cmd, true, &ctx.project_dir)?;
     ui.log(format!(
@@ -743,7 +614,7 @@ fn spawn_window(ctx: &LaunchContext, ui: &mut Ui, window: &str, cmd: &str) -> Re
 }
 
 /// Kill and re-open the dev-container window running `introdus up`.
-fn respawn_dev_window(ctx: &LaunchContext, ui: &mut Ui) -> Result<()> {
+pub(crate) fn respawn_dev_window(ctx: &LaunchContext, ui: &mut Ui) -> Result<()> {
     let session = session_of(ctx);
     let bin = std::env::current_exe().context("locating introdus binary")?;
     let cmd = format!("exec {} up", shell_quote(&bin.to_string_lossy()));

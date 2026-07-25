@@ -11,6 +11,7 @@ mod launch;
 mod lifecycle;
 mod menu;
 mod menu_actions;
+mod menu_paseo;
 mod menu_tunnel;
 mod notify;
 mod notify_listen;
@@ -158,6 +159,13 @@ enum Command {
     },
     /// Print the paseo pairing URL for the running daemon.
     PaseoUrl,
+    /// Allow a browser origin to reach the direct-mode paseo daemon (CORS). The
+    /// origin is the URL a browser loads the paseo UI from, e.g.
+    /// http://100.86.19.65:6767 (the host's IP + client port, not the phone's).
+    PaseoAllowOrigin {
+        /// The browser origin to allow (scheme://host:port).
+        origin: String,
+    },
     /// Open an interactive shell in the container (the `dev` user).
     DevShell,
     /// Open an interactive root shell in the container.
@@ -234,6 +242,7 @@ fn main() -> Result<()> {
         Command::Agent { id, yolo } => cli_actions::agent(&id, yolo),
         Command::InstallPaseo { recreate } => cli_actions::install_paseo(recreate),
         Command::PaseoUrl => cli_actions::paseo_url(),
+        Command::PaseoAllowOrigin { origin } => cli_actions::paseo_allow_origin(&origin),
         Command::DevShell => cli_actions::shell(false),
         Command::RootShell => cli_actions::shell(true),
         Command::TestNotify => cli_actions::test_notify(),

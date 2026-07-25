@@ -84,7 +84,12 @@ as a throwaway container.
   reachability of that port to your VPN — do not run direct mode on a host whose
   `PASEO_PORT` is reachable from the public internet. The default (relay mode)
   exposes nothing inbound (the daemon dials out to the relay). Direct mode also
-  does *not* widen egress — it never contacts paseo's relay/app hosts.
+  does *not* widen egress — it never contacts paseo's relay/app hosts. The
+  daemon's browser CORS allowlist (`PASEO_ALLOWED_ORIGINS`, applied to
+  `config.json` by setup.sh) is **not** part of this boundary: CORS is
+  browser-enforced only, so a native app / CLI / attacker sends any or no
+  `Origin` and is unaffected. It restricts drive-by *web pages*, nothing more —
+  the passphrase + VPN scoping remain the actual access control.
 
 ## 4. Supply-chain posture — agent installs
 

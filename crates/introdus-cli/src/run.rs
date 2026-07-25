@@ -191,6 +191,14 @@ fn push_env(ctx: &LaunchContext, disable_network_block: bool, a: &mut Vec<String
         "PASEO_PASSWORD",
         c.paseo_password.clone().unwrap_or_default(),
     );
+    // Direct-mode CORS: the browser origins the daemon accepts (space-separated;
+    // a sole `*` = any). setup.sh patches these into the daemon's config.json.
+    // Empty in relay mode (the relay handshake isn't origin-checked this way).
+    env(
+        a,
+        "PASEO_ALLOWED_ORIGINS",
+        c.paseo_allowed_origins.join(" "),
+    );
 }
 
 fn push_publish(ctx: &LaunchContext, a: &mut Vec<String>) -> Result<()> {
@@ -420,6 +428,10 @@ mod tests {
         cfg.paseo_mode = introdus_core::config::PaseoMode::Direct;
         cfg.paseo_port = Some(20190);
         cfg.paseo_password = Some("fast-koala".to_owned());
+        cfg.paseo_allowed_origins = vec![
+            "https://app.paseo.sh".to_owned(),
+            "http://127.0.0.1:6767".to_owned(),
+        ];
         let c = LaunchContext::resolve(cfg, std::env::temp_dir()).unwrap();
         let a = run_args(&c, false).unwrap();
         // Published on 0.0.0.0 (all interfaces) so a laptop can reach it over VPN.
@@ -428,6 +440,10 @@ mod tests {
         assert!(a.iter().any(|s| s == "PASEO_MODE=direct"));
         assert!(a.iter().any(|s| s == "PASEO_PORT=20190"));
         assert!(a.iter().any(|s| s == "PASEO_PASSWORD=fast-koala"));
+        // CORS allowlist passed space-separated for setup.sh to apply.
+        assert!(a
+            .iter()
+            .any(|s| s == "PASEO_ALLOWED_ORIGINS=https://app.paseo.sh http://127.0.0.1:6767"));
     }
 
     // run_args must be a PURE argv builder: it bind-mounts the notify FIFO at

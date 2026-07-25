@@ -240,7 +240,7 @@ or change what one owns, update the matching line (per
 | File          | Owns |
 | ------------- | ---- |
 | `lib.rs`      | Crate root; `pub mod` list, `VERSION`, `BIN_NAME`. |
-| `config.rs`   | Typed project `Config` ⇄ `.env` round-trip (`load`/`render`/`save`), default whitelist; `PaseoMode` (relay/direct) + `PASEO_PORT`/`PASEO_PASSWORD`/`PASEO_PORT_BASE`. |
+| `config.rs`   | Typed project `Config` ⇄ `.env` round-trip (`load`/`render`/`save`), default whitelist; `PaseoMode` (relay/direct, `other()` toggle) + `PASEO_PORT`/`PASEO_PASSWORD`/`PASEO_PORT_BASE`; `set_paseo_mode` (opt-in + per-mode whitelist/port normalization + seeds the CORS default, shared by wizard/panel/switch); direct-mode browser CORS allowlist `PASEO_ALLOWED_ORIGINS` + `DEFAULT_PASEO_ORIGINS` and `set_paseo_origins_all`/`add_paseo_origin`/`paseo_allows_all_origins`. |
 | `env_file.rs` | Low-level `.env` I/O: `dotenvy` read, list-splitting, value quoting. |
 | `egress.rs`   | Pure allowlist logic: git-host extraction, per-host anchored regex, container whitelist assembly, tunnel edge IPs/hosts. |
 | `agents.rs`   | The coding-agent registry (`AGENTS`) + install method / yolo-flag metadata; `paseo` orchestrator constants + direct-mode passphrase generator (`generate_passphrase`). Hand-mirrors `container/agents.sh`. |
@@ -271,9 +271,10 @@ or change what one owns, update the matching line (per
 | `run.rs`         | The full `podman run` flag/env/mount set; `--verify` self-check; `--update` in-container refresh. |
 | `session.rs`     | The tmux session model — puts each container in one session with its windows; spawns/respawns the detached `notify-host` service. |
 | `menu.rs`        | The control TUI (`introdus menu`): menu layout (group icons + per-item hotkeys), dispatch to `menu_actions`. |
-| `menu_actions.rs`| Implementations of each control-menu utility (tunnel URL, (re)expose webapp — host-side probe of the cached quick-tunnel URL + in-place cloudflared restart, agents, allowlist, terminals, copy-in, ntfy, test/restart the notify service, recreate/reset/stop/destroy, paseo). The reusable, decision-free cores (`save_and_write_allowlist`, `append_whitelist`, `select_agents`, `run_install_agents`, `paseo_opt_in`, `run_install_paseo`, the no-prompt actions) are `pub(crate)` + generic over [`Frontend`] so `cli_actions` can reuse them headlessly. |
+| `menu_actions.rs`| Implementations of each control-menu utility (tunnel URL, (re)expose webapp — host-side probe of the cached quick-tunnel URL + in-place cloudflared restart, agents, allowlist, terminals, copy-in, ntfy, test/restart the notify service, recreate/reset/stop/destroy). The reusable, decision-free cores (`save_and_write_allowlist`, `append_whitelist`, `select_agents`, `run_install_agents`, the no-prompt actions) plus the shared `pub(crate)` task helpers (`remove_container_task`, `respawn_dev_window`, `spawn_window`) are generic over [`Frontend`] so `cli_actions` / `menu_paseo` can reuse them. |
+| `menu_paseo.rs`  | The paseo control-panel actions, split out of `menu_actions`: **(Re)Install paseo** (`install_paseo`) — first install prompts relay-vs-direct then (direct) all-vs-restrict origins, an existing install offers a relay⇄direct **mode switch**, both persisting via [`Config::set_paseo_mode`]/`set_paseo_origins_all` + a recreate — the "connect" action (`paseo_qr`: pairing QR in relay mode, port + password in direct mode), and **Add a paseo client origin** (`add_origin`/`allow_origin`: appends a browser origin to the direct-mode CORS allowlist and applies it live — patches the running daemon's `config.json` + restarts the daemon, no recreate). Exposes the `pub(crate)` `paseo_opt_in` / `run_install_paseo` / `allow_origin` / `PASEO_ENSURE_DAEMON` cores `cli_actions` reuses. |
 | `menu_tunnel.rs` | The panel's "(Re)Expose webapp" action + the `pub(crate)` `refresh_running_tunnel` / `container_has_tunnel_holes` cores (host-side quick-tunnel probe + in-place cloudflared restart) reused by `cli_actions`. |
-| `cli_actions.rs` | Headless one-shot subcommands mirroring the panel utilities (`tunnel-url`, `blocked-egress`, `allow`, `expose-webapp`, `ntfy`, `install-agent`, `agent`, `install-paseo`, `paseo-url`, `dev-shell`/`root-shell`, `test-notify`, `notify-log`, `restart-notify`, `restart`, `stop`). Reuses the `menu_actions`/`menu_tunnel` cores via a `StdioFrontend`; interactive prompts become CLI flags (`--restart`/`--recreate`/`--yolo`/`--yes`). |
+| `cli_actions.rs` | Headless one-shot subcommands mirroring the panel utilities (`tunnel-url`, `blocked-egress`, `allow`, `expose-webapp`, `ntfy`, `install-agent`, `agent`, `install-paseo`, `paseo-url`, `paseo-allow-origin`, `dev-shell`/`root-shell`, `test-notify`, `notify-log`, `restart-notify`, `restart`, `stop`). Reuses the `menu_actions`/`menu_tunnel`/`menu_paseo` cores via a `StdioFrontend`; interactive prompts become CLI flags/args (`--restart`/`--recreate`/`--yolo`/`--yes`). |
 | `frontend.rs`    | The `Frontend` trait — the output surface (`log` + `run_task`) shared by the interactive panel `Ui` and the headless `StdioFrontend`, so the action cores drive either. |
 | `panel.rs`       | The persistent two-pane control panel: the `Ui` that owns the alternate screen, the input loop (hotkeys + `/` filter), task streaming, and popup prompts. |
 | `panel_draw.rs`  | Pure rendering for the panel: `MenuView`/`Popup` types + the side-effect-free `draw_frame` and its status/menu/output/footer/prompt helpers. |
@@ -296,9 +297,11 @@ Not compiled — embedded by `assets.rs` and bind-mounted at launch.
 - `setup.sh` — post-firewall: clone repo, run launch hooks, auto-start the paseo
   daemon when `INSTALL_PASEO=true` (re-ensured on every container start; in
   `PASEO_MODE=direct` it sets a bcrypt password via a tmux PTY — fail-loud — and
-  patches `~/.paseo/config.json` to bind `0.0.0.0:PASEO_PORT` with the relay
-  off), start the workload; `restart-tunnel` mode re-establishes a dropped
-  cloudflared quick tunnel.
+  patches `~/.paseo/config.json` to bind `0.0.0.0:PASEO_PORT` with the relay off
+  and the browser CORS `allowedOrigins` set from `PASEO_ALLOWED_ORIGINS` (a sole
+  `*` = any; else union-with-existing minus `*`, so a live-added origin survives a
+  restart while an all→restrict switch drops the wildcard)), start the workload;
+  `restart-tunnel` mode re-establishes a dropped cloudflared quick tunnel.
 - `container/agents.sh` — in-container agent-install registry (mirror of
   `agents.rs`).
 - `container/bin/*` — `run-claude`, `install-agents`, `rc-notify` (container→host
@@ -590,7 +593,12 @@ as a throwaway container.
   reachability of that port to your VPN — do not run direct mode on a host whose
   `PASEO_PORT` is reachable from the public internet. The default (relay mode)
   exposes nothing inbound (the daemon dials out to the relay). Direct mode also
-  does *not* widen egress — it never contacts paseo's relay/app hosts.
+  does *not* widen egress — it never contacts paseo's relay/app hosts. The
+  daemon's browser CORS allowlist (`PASEO_ALLOWED_ORIGINS`, applied to
+  `config.json` by setup.sh) is **not** part of this boundary: CORS is
+  browser-enforced only, so a native app / CLI / attacker sends any or no
+  `Origin` and is unaffected. It restricts drive-by *web pages*, nothing more —
+  the passphrase + VPN scoping remain the actual access control.
 
 ## 4. Supply-chain posture — agent installs
 

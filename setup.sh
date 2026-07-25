@@ -223,8 +223,15 @@ set_paseo_password() {
 }
 
 # Direct mode: ensure a password is set, then patch config.json so the daemon
-# binds 0.0.0.0:PASEO_PORT with the relay disabled (a node merge that preserves
-# the password + any other keys). Returns non-zero if the password can't be set.
+# binds 0.0.0.0:PASEO_PORT with the relay disabled and the browser CORS allowlist
+# applied (a node merge that preserves the password + any other keys). Returns
+# non-zero if the password can't be set.
+#
+# CORS from PASEO_ALLOWED_ORIGINS (space-separated; a sole "*" = accept any
+# origin). A wildcard is authoritative (replaces the list); otherwise we UNION the
+# desired origins with whatever config.json already has, minus "*" — so a panel
+# "add a client origin" (which patches config.json live) survives a plain restart,
+# while an all→restrict switch still drops the wildcard.
 configure_paseo_direct() {
     set_paseo_password || return 1
     node -e '
@@ -234,6 +241,16 @@ configure_paseo_direct() {
       c.version=c.version||1; c.daemon=c.daemon||{};
       c.daemon.listen=process.argv[1];
       c.daemon.relay=Object.assign({}, c.daemon.relay, {enabled:false});
+      const desired=(process.env.PASEO_ALLOWED_ORIGINS||"").split(/\s+/).filter(Boolean);
+      if (desired.length) {
+        c.daemon.cors=c.daemon.cors||{};
+        if (desired.includes("*")) {
+          c.daemon.cors.allowedOrigins=["*"];
+        } else {
+          const existing=(c.daemon.cors.allowedOrigins||[]).filter(o=>o!=="*");
+          c.daemon.cors.allowedOrigins=[...new Set([...existing, ...desired])];
+        }
+      }
       fs.mkdirSync(path.dirname(f), {recursive:true});
       fs.writeFileSync(f, JSON.stringify(c,null,2)+"\n");
     ' "0.0.0.0:${PASEO_PORT:-20190}"

@@ -68,6 +68,14 @@ impl PaseoMode {
         matches!(self, PaseoMode::Direct)
     }
 
+    /// The opposite connection mode — the target of the panel's relay⇄direct switch.
+    pub fn other(self) -> PaseoMode {
+        match self {
+            PaseoMode::Relay => PaseoMode::Direct,
+            PaseoMode::Direct => PaseoMode::Relay,
+        }
+    }
+
     /// Parse the `.env` token; anything but `direct` (case-insensitive) is relay.
     fn parse(s: &str) -> PaseoMode {
         if s.eq_ignore_ascii_case("direct") {
@@ -80,6 +88,18 @@ impl PaseoMode {
 
 /// The base of the obscure port range direct-mode daemons are auto-assigned from.
 pub const PASEO_PORT_BASE: u16 = 20190;
+
+/// Default browser origins a direct-mode paseo daemon accepts (CORS
+/// `allowedOrigins`): the hosted paseo web app plus a self-hosted client on this
+/// machine (`localhost`/`127.0.0.1` on paseo's default client port 6767). Other
+/// devices' client origins are added on demand (see `Config::add_paseo_origin`).
+/// The CORS check is browser-only — a non-browser client sends any/no `Origin` —
+/// so this restricts drive-by web pages, not real access (the password is the gate).
+pub const DEFAULT_PASEO_ORIGINS: &[&str] = &[
+    "https://app.paseo.sh",
+    "http://localhost:6767",
+    "http://127.0.0.1:6767",
+];
 
 /// A project's full configuration, the typed mirror of its `.env`.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -106,6 +126,10 @@ pub struct Config {
     /// inside the container; kept here so the panel can display it). `None` in
     /// relay mode.
     pub paseo_password: Option<String>,
+    /// Browser origins the direct-mode daemon accepts (CORS `allowedOrigins`). A
+    /// sole `*` means accept any origin. Empty/ignored in relay mode. Applied to
+    /// the daemon's `config.json` by `setup.sh`; the panel can extend it live.
+    pub paseo_allowed_origins: Vec<String>,
     pub whitelist_hosts: Vec<String>,
     pub internal_allow_cidrs: Vec<String>,
 
@@ -154,6 +178,7 @@ impl Config {
             paseo_mode: PaseoMode::Relay,
             paseo_port: None,
             paseo_password: None,
+            paseo_allowed_origins: Vec::new(),
             whitelist_hosts: DEFAULT_WHITELIST.iter().map(|s| (*s).to_owned()).collect(),
             internal_allow_cidrs: Vec::new(),
             on_launch_script: None,
@@ -172,6 +197,71 @@ impl Config {
             rc_forward_addr: None,
             canary_blocked_ip: DEFAULT_CANARY_IP.to_owned(),
         }
+    }
+
+    /// Opt into paseo in connection `mode`, normalizing the fields that depend on
+    /// it. Relay needs paseo's egress host (its daemon dials out to the relay) and
+    /// no published port; direct drops that host (VPN-local TCP, nothing to reach)
+    /// and clears the port/password so the next launch re-provisions a fresh pair.
+    /// Idempotent — used by the wizard, the panel, and the relay⇄direct switch.
+    pub fn set_paseo_mode(&mut self, mode: PaseoMode) {
+        self.install_paseo = true;
+        self.paseo_mode = mode;
+        self.paseo_port = None;
+        self.paseo_password = None;
+        let host = crate::agents::paseo::HOST.to_owned();
+        match mode {
+            PaseoMode::Relay => {
+                if !self.whitelist_hosts.contains(&host) {
+                    self.whitelist_hosts.push(host);
+                }
+            }
+            PaseoMode::Direct => {
+                self.whitelist_hosts.retain(|h| h != &host);
+                // Ensure a valid CORS allowlist exists for the browser client
+                // (a hand-edited `PASEO_MODE=direct` with no origins would else
+                // reject every browser). The wizard/panel override via the
+                // all-vs-restrict prompt right after.
+                if self.paseo_allowed_origins.is_empty() {
+                    self.set_paseo_origins_all(false);
+                }
+            }
+        }
+    }
+
+    /// Whether the direct-mode daemon should accept **any** browser origin (the
+    /// allowlist is a sole `*`).
+    pub fn paseo_allows_all_origins(&self) -> bool {
+        self.paseo_allowed_origins.iter().any(|o| o == "*")
+    }
+
+    /// Set the direct-mode CORS policy: `all` → `["*"]` (accept any origin);
+    /// otherwise the explicit [`DEFAULT_PASEO_ORIGINS`] allowlist.
+    pub fn set_paseo_origins_all(&mut self, all: bool) {
+        self.paseo_allowed_origins = if all {
+            vec!["*".to_owned()]
+        } else {
+            DEFAULT_PASEO_ORIGINS
+                .iter()
+                .map(|s| (*s).to_owned())
+                .collect()
+        };
+    }
+
+    /// Add one browser `origin` to the direct-mode allowlist. Returns `true` when
+    /// newly added; `false` (no-op) when already accepting all origins, or the
+    /// origin is blank or already present.
+    pub fn add_paseo_origin(&mut self, origin: &str) -> bool {
+        let origin = origin.trim();
+        if origin.is_empty() || self.paseo_allows_all_origins() {
+            return false;
+        }
+        let origin = origin.to_owned();
+        if self.paseo_allowed_origins.contains(&origin) {
+            return false;
+        }
+        self.paseo_allowed_origins.push(origin);
+        true
     }
 
     /// Parse a `.env` file into a `Config`, applying the shell defaults for any
@@ -195,6 +285,7 @@ impl Config {
                 None => None,
             },
             paseo_password: opt(&m, "PASEO_PASSWORD"),
+            paseo_allowed_origins: list_or(&m, "PASEO_ALLOWED_ORIGINS", &[]),
             whitelist_hosts: list_or(&m, "WHITELIST_HOSTS", DEFAULT_WHITELIST),
             internal_allow_cidrs: list_or(&m, "INTERNAL_ALLOW_CIDRS", &[]),
             on_launch_script: opt(&m, "ON_LAUNCH_SCRIPT"),
@@ -242,6 +333,7 @@ impl Config {
         let paseo_port_s = self.paseo_port.map(|p| p.to_string());
         opt_scalar(&mut o, "PASEO_PORT", paseo_port_s.as_deref());
         opt_scalar(&mut o, "PASEO_PASSWORD", self.paseo_password.as_deref());
+        inline_list(&mut o, "PASEO_ALLOWED_ORIGINS", &self.paseo_allowed_origins);
 
         section(&mut o, "Egress: proxy hostname allowlist (default-deny)");
         multiline_list(&mut o, "WHITELIST_HOSTS", &self.whitelist_hosts);
@@ -408,6 +500,10 @@ mod tests {
         c.paseo_mode = PaseoMode::Direct;
         c.paseo_port = Some(20191);
         c.paseo_password = Some("fast-koala".to_owned());
+        c.paseo_allowed_origins = vec![
+            "https://app.paseo.sh".to_owned(),
+            "http://127.0.0.1:6767".to_owned(),
+        ];
         c.internal_allow_cidrs = vec!["10.2.5.131".to_owned()];
         c.extra_ports = vec!["8123".to_owned(), "16379:6379".to_owned()];
         c.on_launch_script = Some("pnpm install\npnpm dev --host 0.0.0.0".to_owned());
@@ -448,6 +544,7 @@ mod tests {
         assert_eq!(c.paseo_mode, PaseoMode::Relay);
         assert!(c.paseo_port.is_none());
         assert!(c.paseo_password.is_none());
+        assert!(c.paseo_allowed_origins.is_empty());
         assert_eq!(c.whitelist_hosts.len(), DEFAULT_WHITELIST.len());
         assert_eq!(c.mem_limit, "8g");
         assert_eq!(c.pids_limit, 16384);
@@ -455,6 +552,64 @@ mod tests {
         assert_eq!(c.canary_blocked_ip, "93.184.216.34");
         assert!(!c.expose_webapp);
         assert!(c.session_name.is_none());
+    }
+
+    #[test]
+    fn ta166_set_paseo_mode_normalizes_and_toggles() {
+        assert_eq!(PaseoMode::Relay.other(), PaseoMode::Direct);
+        assert_eq!(PaseoMode::Direct.other(), PaseoMode::Relay);
+        let host = crate::agents::paseo::HOST.to_owned();
+
+        // Fresh direct opt-in: relay host absent, port/password left for launch,
+        // and a default CORS allowlist seeded (so a browser client isn't rejected).
+        let mut c = Config::new("p".into(), "r".into(), "k".into(), 3000);
+        c.set_paseo_mode(PaseoMode::Direct);
+        assert!(c.install_paseo);
+        assert_eq!(c.paseo_mode, PaseoMode::Direct);
+        assert!(!c.whitelist_hosts.contains(&host));
+        assert_eq!(c.paseo_allowed_origins.len(), DEFAULT_PASEO_ORIGINS.len());
+        assert!(c
+            .paseo_allowed_origins
+            .iter()
+            .any(|o| o == "http://127.0.0.1:6767"));
+        assert!(!c.paseo_allows_all_origins());
+
+        // Switch direct -> relay: relay host added, provisioned port/password cleared.
+        c.paseo_port = Some(20191);
+        c.paseo_password = Some("fast-koala".to_owned());
+        c.set_paseo_mode(PaseoMode::Relay);
+        assert_eq!(c.paseo_mode, PaseoMode::Relay);
+        assert!(c.whitelist_hosts.contains(&host));
+        assert!(c.paseo_port.is_none() && c.paseo_password.is_none());
+
+        // Switch back relay -> direct: relay host dropped again (no duplicate churn).
+        c.set_paseo_mode(PaseoMode::Direct);
+        assert!(!c.whitelist_hosts.contains(&host));
+    }
+
+    #[test]
+    fn ta167_paseo_origin_policy_and_add() {
+        let mut c = Config::new("p".into(), "r".into(), "k".into(), 3000);
+
+        // Restrict → explicit default list; add appends a new origin once.
+        c.set_paseo_origins_all(false);
+        assert!(!c.paseo_allows_all_origins());
+        assert!(c.add_paseo_origin("  http://100.86.19.65:6767 "));
+        assert!(c
+            .paseo_allowed_origins
+            .contains(&"http://100.86.19.65:6767".to_owned()));
+        assert!(
+            !c.add_paseo_origin("http://100.86.19.65:6767"),
+            "duplicate is a no-op"
+        );
+        assert!(!c.add_paseo_origin("   "), "blank is a no-op");
+
+        // Allow-all → sole `*`; adding is then a no-op (already open).
+        c.set_paseo_origins_all(true);
+        assert_eq!(c.paseo_allowed_origins, vec!["*".to_owned()]);
+        assert!(c.paseo_allows_all_origins());
+        assert!(!c.add_paseo_origin("http://example:1234"));
+        assert_eq!(c.paseo_allowed_origins, vec!["*".to_owned()]);
     }
 
     #[test]

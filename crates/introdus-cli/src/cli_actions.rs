@@ -19,6 +19,7 @@ use crate::frontend::StdioFrontend;
 use crate::launch::{self, LaunchOpts};
 use crate::lifecycle::Lifecycle;
 use crate::menu_actions as act;
+use crate::menu_paseo;
 use crate::menu_tunnel;
 
 /// Resolve the current project's launch context (from the working directory).
@@ -191,13 +192,13 @@ pub fn install_paseo(recreate: bool) -> Result<()> {
         return Ok(());
     }
     let mut config = ctx.config.clone();
-    act::paseo_opt_in(&mut config);
+    menu_paseo::paseo_opt_in(&mut config);
     let mut f = StdioFrontend;
     act::save_and_write_allowlist(&ctx, &mut f, config, "enabled paseo (INSTALL_PASEO=true)")?;
     if recreate {
         return recreate_now("recreating to wire paseo's relay access (phone pairing)");
     }
-    act::run_install_paseo(&ctx, &mut f)?;
+    menu_paseo::run_install_paseo(&ctx, &mut f)?;
     if !act::container_has_cmd(&ctx, agents::paseo::CMD) {
         bail!("paseo isn't installed — check `introdus blocked-egress` for a blocked host, then retry");
     }
@@ -226,7 +227,10 @@ pub fn paseo_url() -> Result<()> {
     }
     // Ensure the daemon is up, then print the pairing details and pull the URL
     // out of them. `2>&1` folds any diagnostics into the captured stream.
-    let script = format!("{}; paseo daemon pair 2>&1", act::PASEO_ENSURE_DAEMON);
+    let script = format!(
+        "{}; paseo daemon pair 2>&1",
+        menu_paseo::PASEO_ENSURE_DAEMON
+    );
     let out = act::exec(&ctx, Some("dev"))
         .args(["bash", "-lc", &script])
         .stdout_quiet()?;
@@ -237,6 +241,12 @@ pub fn paseo_url() -> Result<()> {
         }
         None => bail!("couldn't find a pairing URL in paseo's output:\n{out}"),
     }
+}
+
+/// Allow a browser origin to reach the direct-mode paseo daemon (CORS), applying
+/// it live to the running daemon. Mirrors the panel's "Add a paseo client origin".
+pub fn paseo_allow_origin(origin: &str) -> Result<()> {
+    menu_paseo::allow_origin(&ctx()?, &mut StdioFrontend, origin)
 }
 
 // ---- config toggles ---------------------------------------------------------
@@ -357,7 +367,7 @@ mod tests {
 
     #[test]
     fn ta158_ensure_daemon_does_not_treat_nonzero_start_as_fatal() {
-        let s = act::PASEO_ENSURE_DAEMON;
+        let s = menu_paseo::PASEO_ENSURE_DAEMON;
         // Every `paseo daemon start` is followed by `|| true`, so its exit code
         // (e.g. the readiness-gate "exit code 1" reported even when the worker is
         // actually listening on :6767) never aborts the snippet.
