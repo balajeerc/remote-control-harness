@@ -154,12 +154,12 @@ const MENU: &[Row] = &[
 ];
 
 /// The visible label for a menu item — mostly the static [`Action`] label, but
-/// the paseo "connect" item reads as port & password in direct mode (there's no
-/// QR to scan; you connect over TCP).
+/// the paseo "connect" item reads as the direct URL in direct mode (there's no
+/// QR to scan; you paste a `tcp://…` URL into the client).
 fn item_label(a: Action, ctx: &LaunchContext) -> String {
     match a {
         Action::PaseoQr if ctx.config.paseo_mode.is_direct() => {
-            "Show Paseo port & password (direct connection)".to_owned()
+            "Show Paseo Direct URL (and password)".to_owned()
         }
         _ => a.to_string(),
     }

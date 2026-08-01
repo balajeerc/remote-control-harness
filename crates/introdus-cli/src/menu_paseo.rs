@@ -1,13 +1,16 @@
 //! The paseo orchestrator control-panel actions, split out of
 //! [`crate::menu_actions`] to keep that file within its line budget. Owns the
 //! **(re)install + relay⇄direct mode switch** (`install_paseo`), the "connect"
-//! action (`paseo_qr` — a pairing QR in relay mode, the port + password in direct
-//! mode), and the shared opt-in cores the headless [`crate::cli_actions`] reuses.
+//! action (`paseo_qr` — a pairing QR in relay mode, the paste-ready
+//! `tcp://host:port?password=…` URL in direct mode), and the shared opt-in cores
+//! the headless [`crate::cli_actions`] reuses.
+
+use std::time::Duration;
 
 use anyhow::{bail, Result};
 use introdus_core::config::PaseoMode;
 use introdus_core::podman::{self, exec_interactive};
-use introdus_core::{agents, Config};
+use introdus_core::{agents, hostnet, Config};
 
 use crate::context::LaunchContext;
 use crate::frontend::Frontend;
@@ -228,22 +231,53 @@ pub(crate) fn allow_origin(ctx: &LaunchContext, f: &mut impl Frontend, origin: &
     Ok(())
 }
 
+/// How long the direct-connection URL stays in the panel's output pane before it
+/// erases itself. Long enough to copy or type into a client, short enough that
+/// the daemon password isn't left sitting on a screen (or in a scrollback
+/// someone shoulder-surfs later).
+const DIRECT_URL_TTL: Duration = Duration::from_secs(15);
+
+/// What replaces the URL block once [`DIRECT_URL_TTL`] is up.
+const DIRECT_URL_HIDDEN: &str = "  (Paseo direct url hidden after 15 seconds)";
+
+/// The host address a client should dial for direct mode, preferring this host's
+/// tailscale/VPN address (see [`hostnet`]) and falling back to a placeholder when
+/// the host has no routable IPv4 address to name. Returns `(address, source)`.
+pub(crate) fn direct_host() -> (String, String) {
+    match hostnet::detect() {
+        Some(a) => {
+            let source = a.source();
+            (a.ip, source)
+        }
+        None => (
+            "<host-ip>".to_owned(),
+            "no routable address found — substitute this host's address".to_owned(),
+        ),
+    }
+}
+
 /// The paseo "connect" panel action. In relay mode it opens a tmux window that
 /// starts the daemon and prints the pairing QR (the daemon dials out to the relay;
 /// nothing is exposed inbound). In direct mode there is no QR — the daemon is
-/// reached over plain TCP on your VPN — so it prints the port + password instead.
+/// reached over plain TCP on your VPN — so it shows the paste-ready
+/// `tcp://host:port?password=…` URL, which self-erases after [`DIRECT_URL_TTL`].
 pub fn paseo_qr(ctx: &LaunchContext, ui: &mut Ui) -> Result<()> {
     act::require_running(ctx)?;
     if !act::container_has_cmd(ctx, agents::paseo::CMD) {
         bail!("paseo isn't installed — run '(Re)Install paseo' from the Agents menu first");
     }
     if ctx.config.paseo_mode.is_direct() {
-        for line in agents::paseo::direct_connection_help(
+        let (host, source) = direct_host();
+        ui.log(format!("  address from {source}"));
+        let lines = agents::paseo::direct_connection_help(
+            &host,
             ctx.config.paseo_port,
             ctx.config.paseo_password.as_deref(),
-        ) {
-            ui.log(format!("  {line}"));
-        }
+        )
+        .into_iter()
+        .map(|l| format!("  {l}"))
+        .collect();
+        ui.log_transient(lines, DIRECT_URL_TTL, DIRECT_URL_HIDDEN);
         return Ok(());
     }
     // Relay mode: ensure the daemon is up, print the pairing QR (paseo renders it

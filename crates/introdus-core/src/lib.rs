@@ -12,6 +12,7 @@ pub mod config;
 pub mod containers;
 pub mod egress;
 pub mod env_file;
+pub mod hostnet;
 pub mod names;
 pub mod notify;
 pub mod paths;

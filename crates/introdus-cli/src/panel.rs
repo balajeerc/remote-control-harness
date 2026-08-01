@@ -11,8 +11,9 @@
 
 use std::cell::RefCell;
 use std::io::{self, Stdout};
+use std::ops::Range;
 use std::rc::Rc;
-use std::time::Duration;
+use std::time::{Duration, Instant};
 
 use anyhow::{bail, Result};
 use ratatui::backend::CrosstermBackend;
@@ -48,6 +49,27 @@ pub enum Selection {
 /// Braille spinner frames for the "action in progress" indicator.
 const SPINNER: [char; 10] = ['⠋', '⠙', '⠹', '⠸', '⠼', '⠴', '⠦', '⠧', '⠇', '⠏'];
 
+/// A block of output lines that erases itself once its TTL is up — for output
+/// that shouldn't linger on a screen someone else may be looking at (the
+/// direct-mode paseo URL, which embeds the daemon password).
+struct Transient {
+    /// Where the block sits in the output buffer, as a half-open index range.
+    range: Range<usize>,
+    /// When the block should be replaced by [`Transient::message`].
+    deadline: Instant,
+    /// The single line left behind in its place.
+    message: String,
+}
+
+/// Replace `range` in `lines` with the single line `message`. Split out of
+/// [`Ui`] so the erase itself is testable without a terminal.
+fn erase(lines: &mut Vec<String>, range: Range<usize>, message: String) {
+    if range.end > lines.len() {
+        return; // Buffer was rewritten under us; nothing safe to erase.
+    }
+    lines.splice(range, [message]);
+}
+
 /// Owns the alternate screen + the output pane for a control-menu session.
 pub struct Ui {
     term: Terminal<Backend>,
@@ -64,6 +86,8 @@ pub struct Ui {
     /// keystrokes are ignored (the menu is disabled until it finishes).
     busy: Option<String>,
     spin: usize,
+    /// A pending self-erasing output block, if one is on screen.
+    transient: Option<Transient>,
     _capture: CaptureGuard,
 }
 
@@ -86,6 +110,7 @@ impl Ui {
             filtering: false,
             busy: None,
             spin: 0,
+            transient: None,
             _capture: capture,
         })
     }
@@ -100,6 +125,43 @@ impl Ui {
     pub fn log(&mut self, line: impl Into<String>) {
         self.out.borrow_mut().push(line.into());
         let _ = self.draw(None);
+    }
+
+    /// Append a block of lines that is wiped from the pane after `ttl`, leaving
+    /// `message` in its place — for output too sensitive to leave on screen (the
+    /// direct-mode paseo URL carries the daemon password). The erase lands on
+    /// the first redraw past the deadline; the menu redraws at least every
+    /// [`STATUS_POLL`], so it is prompt without blocking the panel meanwhile.
+    /// Only one block is pending at a time: starting a second erases the first.
+    pub fn log_transient(&mut self, lines: Vec<String>, ttl: Duration, message: &str) {
+        self.retire_transient(true);
+        let range = {
+            let mut out = self.out.borrow_mut();
+            let start = out.len();
+            out.extend(lines);
+            start..out.len()
+        };
+        self.transient = Some(Transient {
+            range,
+            deadline: Instant::now() + ttl,
+            message: message.to_owned(),
+        });
+        let _ = self.draw(None);
+    }
+
+    /// Erase the pending transient block if its deadline has passed (or `force`).
+    /// Called before every redraw.
+    fn retire_transient(&mut self, force: bool) {
+        let due = self
+            .transient
+            .as_ref()
+            .is_some_and(|t| force || Instant::now() >= t.deadline);
+        if !due {
+            return;
+        }
+        if let Some(t) = self.transient.take() {
+            erase(&mut self.out.borrow_mut(), t.range, t.message);
+        }
     }
 
     /// Announce the start of an action in the output pane (a visual separator).
@@ -365,6 +427,8 @@ impl Ui {
     // ---- rendering ---------------------------------------------------------
 
     fn draw(&mut self, popup: Option<Popup>) -> Result<()> {
+        // Every frame is a chance for a timed-out secret to leave the pane.
+        self.retire_transient(false);
         // Pull each field out so `term.draw` (mut) and the read-only panel state
         // are disjoint borrows of `self`.
         let lines = self.out.clone();
@@ -420,5 +484,26 @@ fn blank_status() -> Status {
         state: "…",
         webapp_port: 0,
         agents: String::new(),
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn ta170_transient_erase_replaces_only_its_own_lines() {
+        let mut lines: Vec<String> = ["▶ connect", "tcp://x?password=p", "host x", "  ! later"]
+            .iter()
+            .map(|s| (*s).to_owned())
+            .collect();
+        erase(&mut lines, 1..3, "(hidden)".to_owned());
+        assert_eq!(lines, vec!["▶ connect", "(hidden)", "  ! later"]);
+        // The secret is gone from the buffer entirely, not just off-screen.
+        assert!(!lines.iter().any(|l| l.contains("password")));
+        // A stale range (buffer rewritten under us) is a no-op, never a panic.
+        let before = lines.clone();
+        erase(&mut lines, 2..9, "(hidden)".to_owned());
+        assert_eq!(lines, before);
     }
 }

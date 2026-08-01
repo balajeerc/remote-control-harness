@@ -12,7 +12,9 @@
 #      starts the daemon.
 #   3. We assert config.json, the actual listen socket, the host publish, that no
 #      relay egress was wired, and the auth behaviour.
-# Covers TEST_PLAN: TA165
+#   4. The control panel's direct-mode connect item shows the paste-ready
+#      `tcp://host:port?password=…` URL and wipes it again 15s later.
+# Covers TEST_PLAN: TA165, TA171
 set -euo pipefail
 source /usr/local/bin/driver-common.sh
 
@@ -96,7 +98,31 @@ podman exec --user dev "$cname" bash -lc "PASEO_HOST=127.0.0.1:$port PASEO_PASSW
     || { echo "FATAL: correct-password client could not connect"; exit 1; }
 echo "    ✓ correct password connects"
 
+# ---- the control panel's direct-URL action ---------------------------------
+# In direct mode the connect item renames and, instead of a pairing QR, prints a
+# paste-ready `tcp://<host>:<port>?password=<pass>` URL — which then erases
+# itself from the output pane 15s later.
+echo "==> control panel: Show Paseo Direct URL (and password)"
+# Widen the session first: the output pane is ~half the window, and at 80 columns
+# it would wrap the ~46-char URL across rows, which capture-pane can't match.
+tmux resize-window -t "$session" -x 160 -y 50 2>/dev/null || true
+mc_ready
+mc_wait_prompt "Show Paseo Direct URL (and password)" "renamed direct-mode connect item"
+mc_hotkey "P"
+mc_wait_prompt "tcp://" "the paste-ready direct URL"
+url="$(mc_vis | grep -oE 'tcp://[^ ]+' | head -1)"
+[[ "$url" == *":$port?password=$pass" ]] \
+    || { echo "FATAL: URL doesn't carry this container's port+password: $url"; exit 1; }
+echo "    ✓ panel shows $url"
+
+echo "==> the direct URL is hidden again after 15 seconds"
+mc_wait_prompt "Paseo direct url hidden after 15 seconds" "the hidden notice"
+mc_vis | grep -q "tcp://" \
+    && { echo "FATAL: the URL is still on screen after the hide"; mc_vis | sed 's/^/      /'; exit 1; }
+echo "    ✓ URL wiped from the output pane, notice left in its place"
+
 echo
 echo "=== PASEO DIRECT OK: no relay, daemon bound 0.0.0.0:$port with a bcrypt"
 echo "    password, port published on the host, authenticated client connects,"
-echo "    wrong/absent password rejected — all nested. ==="
+echo "    wrong/absent password rejected, and the panel's direct URL shown then"
+echo "    self-erased — all nested. ==="

@@ -197,20 +197,38 @@ pub mod paseo {
         format!("{a}-{n}")
     }
 
-    /// The display lines for a direct-mode connection — the port + password and
-    /// how to enter them in paseo desktop's "Direct connection" dialog / the CLI.
-    /// `None` values render a "relaunch to assign/generate" hint. Shared by the
-    /// panel action and the headless subcommand.
-    pub fn direct_connection_help(port: Option<u16>, password: Option<&str>) -> Vec<String> {
-        let port = port.map_or_else(|| "(relaunch to assign)".to_owned(), |p| p.to_string());
+    /// The one-line direct-connection URL, in the exact form the paseo client
+    /// takes as a paste: `tcp://<host>:<port>?password=<password>`. `host` is
+    /// this container host's client-reachable address (see
+    /// [`crate::hostnet::detect`]).
+    pub fn direct_url(host: &str, port: u16, password: &str) -> String {
+        format!("tcp://{host}:{port}?password={password}")
+    }
+
+    /// The display lines for a direct-mode connection: the paste-ready
+    /// [`direct_url`], the same values broken out for typing into paseo
+    /// desktop's "Direct connection" dialog, and the CLI form. A `None` port or
+    /// password renders a "relaunch to assign/generate" hint instead of a URL.
+    /// Shared by the panel action and the headless subcommand.
+    ///
+    /// Every line carries the daemon password, so the panel shows this block
+    /// only briefly (see the control panel's transient output).
+    pub fn direct_connection_help(
+        host: &str,
+        port: Option<u16>,
+        password: Option<&str>,
+    ) -> Vec<String> {
+        let port_s = port.map_or_else(|| "(relaunch to assign)".to_owned(), |p| p.to_string());
         let pass = password.unwrap_or("(relaunch to generate)");
+        let first = match (port, password) {
+            (Some(p), Some(pw)) => direct_url(host, p, pw),
+            _ => format!("port {port_s}, password {pass}"),
+        };
         vec![
-            "Paseo DIRECT connection (no relay) — in paseo desktop → 'Direct connection':"
-                .to_owned(),
-            format!("  port {port}, password {pass}"),
-            "  host: this machine's VPN/tailscale address (127.0.0.1 if the desktop is here)"
-                .to_owned(),
-            format!("  CLI:  PASEO_HOST=<host>:{port} PASEO_PASSWORD={pass} paseo ls"),
+            "Paseo DIRECT connection (no relay) — paste into the paseo client:".to_owned(),
+            format!("  {first}"),
+            format!("  host {host} · port {port_s} · password {pass}"),
+            format!("  CLI:  PASEO_HOST={host}:{port_s} PASEO_PASSWORD={pass} paseo ls"),
         ]
     }
 
@@ -289,13 +307,33 @@ mod tests {
 
     #[test]
     fn ta165_direct_connection_help_shows_port_and_password() {
-        let lines = paseo::direct_connection_help(Some(20190), Some("fast-koala")).join("\n");
+        let host = "100.117.172.96";
+        let lines = paseo::direct_connection_help(host, Some(20190), Some("fast-koala")).join("\n");
         assert!(lines.contains("20190"), "shows the port: {lines}");
         assert!(lines.contains("fast-koala"), "shows the password: {lines}");
         assert!(lines.contains("PASEO_HOST"), "shows the CLI form: {lines}");
         // Missing values render a relaunch hint, not an empty/garbage line.
-        let hint = paseo::direct_connection_help(None, None).join("\n");
+        let hint = paseo::direct_connection_help("10.0.0.2", None, None).join("\n");
         assert!(hint.contains("relaunch"), "None renders a hint: {hint}");
+        assert!(
+            !hint.contains("tcp://"),
+            "no URL without a port/password: {hint}"
+        );
+    }
+
+    #[test]
+    fn ta169_direct_url_is_the_paste_ready_client_form() {
+        // The exact shape the paseo client accepts as a paste — the help block
+        // must lead with it.
+        let host = "100.117.172.96";
+        let url = "tcp://100.117.172.96:6767?password=my-password";
+        assert_eq!(paseo::direct_url(host, 6767, "my-password"), url);
+        let lines = paseo::direct_connection_help(host, Some(6767), Some("my-password"));
+        assert_eq!(
+            lines[1].trim(),
+            url,
+            "URL is the first thing after the heading: {lines:?}"
+        );
     }
 
     #[test]

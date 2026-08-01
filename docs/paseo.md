@@ -53,13 +53,29 @@ With paseo on:
 - The panel's "Launch an installed agent" offers a **"via paseo"** mode for the
   natively-supported providers.
 - The panel gains a **connect** item: **"Show paseo pairing QR code"** in relay
-  mode (scan it from the app), or **"Show Paseo port & password"** in direct mode
-  (the host `port` + `password` to enter in paseo desktop's Direct Connection).
+  mode (scan it from the app), or **"Show Paseo Direct URL (and password)"** in
+  direct mode. The latter prints a paste-ready client URL:
+
+  ```
+  tcp://100.117.172.96:6767?password=fast-koala
+  ```
+
+  The host part is **this machine's tailscale address** when it has one (that's
+  the network direct mode is for) — otherwise its ordinary LAN address, with
+  podman/docker bridge addresses used only as a last resort. The panel says which
+  interface the address came from, and the same values are also printed broken
+  out (host · port · password) for typing into paseo desktop's Direct Connection
+  dialog.
+
+  Because the URL embeds the daemon password, the panel **erases it from the
+  output pane after 15 seconds**, leaving `(Paseo direct url hidden after 15
+  seconds)` behind. Press `P` again whenever you need it back.
 - In direct mode it also gains **"Add a paseo client origin"** — see below.
 
 Installed via `pnpm add -g @getpaseo/cli`. The headless equivalents are
 `introdus install-paseo`, `introdus paseo-url` (prints the pairing URL, or the
-port + password in direct mode), and `introdus paseo-allow-origin <url>`.
+direct URL in direct mode — no timed hiding there, since the output *is* the
+point of the subcommand), and `introdus paseo-allow-origin <url>`.
 
 ## Browser clients & CORS
 

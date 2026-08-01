@@ -215,9 +215,15 @@ pub fn paseo_url() -> Result<()> {
     if !act::container_has_cmd(&ctx, agents::paseo::CMD) {
         bail!("paseo isn't installed — run `introdus install-paseo` first");
     }
-    // Direct mode has no relay pairing URL — print the port + password instead.
+    // Direct mode has no relay pairing URL — print the paste-ready direct URL
+    // (this host's tailscale/LAN address + port + password) instead. Nothing is
+    // hidden after a delay here as it is in the panel: a one-shot subcommand's
+    // output is the whole point, and the caller owns the terminal.
     if ctx.config.paseo_mode.is_direct() {
+        let (host, source) = menu_paseo::direct_host();
+        println!("address from {source}");
         for line in agents::paseo::direct_connection_help(
+            &host,
             ctx.config.paseo_port,
             ctx.config.paseo_password.as_deref(),
         ) {
