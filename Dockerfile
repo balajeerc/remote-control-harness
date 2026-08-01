@@ -1,4 +1,4 @@
-FROM ubuntu:24.04
+FROM ubuntu:26.04
 
 # Ubuntu minimal ships no locale by default, so CLIs that gate box-drawing /
 # emoji on a UTF-8 locale fall back to ASCII. C.UTF-8 is built into glibc,
@@ -39,8 +39,9 @@ RUN apt-get update \
       tinyproxy \
  && rm -rf /var/lib/apt/lists/*
 
-# Neovim from the official prebuilt tarball — Ubuntu 24.04's apt nvim (0.9.5)
-# is older than what current LazyVim requires.
+# Neovim from the official prebuilt tarball, not apt: the archive's nvim trails
+# what current LazyVim requires (and lags further the older the release gets),
+# so the tarball keeps this independent of the base image's Ubuntu version.
 RUN set -eu; arch="$(uname -m)"; \
     case "$arch" in \
       x86_64)  nvim_arch=x86_64 ;; \
@@ -96,9 +97,10 @@ RUN printf '%s\n' \
     > /etc/tmux.conf
 
 # ---- users: dev (workload) + rcproxy (egress proxy) ------------------------
-# Ubuntu 24.04's base image ships a default `ubuntu` user at uid 1000; remove it
-# so `dev` can take 1000. Nothing references the numeric uid (we use the names),
-# but a stable, conventional uid keeps the persistent volume's ownership sane.
+# Ubuntu's base image has shipped a default `ubuntu` user at uid 1000 since
+# 24.04; remove it so `dev` can take 1000. Nothing references the numeric uid (we
+# use the names), but a stable, conventional uid keeps the persistent volume's
+# ownership sane. Tolerant of the user being absent, for a base that drops it.
 RUN userdel --remove ubuntu 2>/dev/null || true \
  && useradd --create-home --uid 1000 --shell /bin/bash dev \
  && useradd --system   --uid 1001 --shell /usr/sbin/nologin rcproxy
@@ -112,8 +114,9 @@ RUN mkdir -p /etc/tinyproxy /var/log/tinyproxy /run/tinyproxy \
  && chown rcproxy:rcproxy /etc/tinyproxy/egress-allowlist.txt /var/log/tinyproxy /run/tinyproxy
 
 # Run tinyproxy from a copied path, NOT the packaged /usr/bin/tinyproxy.
-# Ubuntu 24.10+ (and 26.04 on the host) ships /etc/apparmor.d/tinyproxy, a
-# Canonical AppArmor profile attached to the binary PATH "/usr/bin/tinyproxy".
+# Ubuntu 24.10+ — which this 26.04 base and any modern host both are — ships
+# /etc/apparmor.d/tinyproxy, a Canonical AppArmor profile attached to the binary
+# PATH "/usr/bin/tinyproxy".
 # AppArmor is enforced host-wide by the kernel on the exec path, so it confines
 # the containerized binary too — even with the container itself unconfined and
 # even under `apparmor=unconfined` (the profile transitions on exec regardless).
