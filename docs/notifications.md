@@ -132,6 +132,18 @@ password** — anyone who knows it can publish and read.
   world-writable (0666) on purpose — rootless podman maps its host owner to
   container-root while `rc-notify` runs as `dev`, so a 0600 FIFO would drop every
   event; it's safe because it sits in `$XDG_RUNTIME_DIR` (0700, owner-only).
+- **Paseo terminals:** when that same hook runs inside a terminal the
+  [paseo](paseo.md) daemon spawned (it injects `PASEO_TERMINAL_ID`), `rc-notify`
+  *also* reports the state to paseo, so the phone gets its own "Terminal needs
+  input" / "Terminal finished" push alongside the desktop popup. Everywhere else
+  — an ordinary `run-claude` window — it's a no-op and the FIFO stays the only
+  path. We report from `rc-notify` rather than enabling paseo's own claude hooks
+  because those treat only an `idle_prompt` notification as "needs input" and
+  register no `PermissionRequest` hook, so a permission prompt would raise
+  nothing; `rc-notify` already fires on the right events and feeds paseo the
+  `idle_prompt` sentinel it needs. Agents started through the app (`paseo run`)
+  need none of this: paseo tracks those natively, and its SDK call sets
+  `settingSources` to include user settings, so `rc-notify` fires there too.
 - **Trust boundary:** `introdus notify-host` validates the event against a fixed
   whitelist (`done` / `waiting`) and strips the label to `[A-Za-z0-9._-]`
   (≤40 chars) before it renders under the "Remote dev" brand — a compromised

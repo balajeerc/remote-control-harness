@@ -16,7 +16,7 @@
 #
 # Not asserted: a physically paired phone (needs a device). Daemon<->relay
 # connectivity IS asserted — that is the whole egress fix.
-# Covers TEST_PLAN: TA128, TA130
+# Covers TEST_PLAN: TA128, TA130, TA173
 set -euo pipefail
 source /usr/local/bin/driver-common.sh
 
@@ -128,8 +128,60 @@ done
 }
 echo "    ✓ daemon connected to the relay (relay_control_connected) — phone pairing works"
 
+# ---- 5. rc-notify bridges its events to paseo terminal activity -------------
+# In a terminal the paseo daemon spawned, rc-notify must ALSO report state to
+# paseo so the phone gets a "needs input"/"finished" push. The unit test
+# (TA172) proves the dispatch against a stub; only here can we prove it against
+# the REAL paseo CLI — that `waiting` actually resolves to needs-input, which
+# hinges on the `idle_prompt` stdin sentinel rc-notify injects (paseo's claude
+# provider resolves nothing without it).
+#
+# Stand in for the daemon's terminal env: a scratch listener on loopback plays
+# the activity URL, and we assert on the state paseo POSTs to it. No egress.
+echo "==> rc-notify → paseo terminal activity (real paseo CLI)"
+probe='
+cat > /tmp/probe.js <<"EOF"
+const http=require("http"),fs=require("fs");
+http.createServer((q,s)=>{let b="";q.on("data",d=>b+=d);q.on("end",()=>{
+  fs.appendFileSync("/tmp/probe.log",b+"\n");s.writeHead(200);s.end("{}");});})
+  .listen(38999,"127.0.0.1");
+EOF
+rm -f /tmp/probe.log; node /tmp/probe.js & sleep 1
+export PASEO_TERMINAL_ID=harness-term PASEO_ACTIVITY_TOKEN=t \
+       PASEO_TERMINAL_ACTIVITY_URL=http://127.0.0.1:38999/activity
+rc-notify waiting; sleep 1; rc-notify done; sleep 1
+cat /tmp/probe.log 2>/dev/null
+'
+activity="$(podman exec --user dev "$cname" bash -lc "$probe" 2>/dev/null || true)"
+grep -q '"state":"needs-input"' <<<"$activity" || {
+    echo "FATAL: rc-notify waiting did not reach paseo as needs-input. Posts seen:"
+    echo "${activity:-<none>}" | sed 's/^/      /'
+    exit 1
+}
+echo "    ✓ rc-notify waiting → paseo state needs-input (idle_prompt sentinel accepted)"
+grep -q '"state":"idle"' <<<"$activity" || {
+    echo "FATAL: rc-notify done did not reach paseo as idle. Posts seen:"
+    echo "${activity:-<none>}" | sed 's/^/      /'
+    exit 1
+}
+echo "    ✓ rc-notify done → paseo state idle"
+
+# Outside a paseo terminal the bridge must stay silent: an ordinary run-claude
+# window keeps the host FIFO as its only path (no stray daemon traffic).
+outside="$(podman exec --user dev "$cname" bash -lc '
+rm -f /tmp/probe.log
+export PASEO_ACTIVITY_TOKEN=t PASEO_TERMINAL_ACTIVITY_URL=http://127.0.0.1:38999/activity
+unset PASEO_TERMINAL_ID
+rc-notify waiting >/dev/null 2>&1
+cat /tmp/probe.log 2>/dev/null' 2>/dev/null || true)"
+[[ -z "${outside//[[:space:]]/}" ]] || {
+    echo "FATAL: rc-notify reported to paseo with no PASEO_TERMINAL_ID: $outside"; exit 1
+}
+echo "    ✓ no PASEO_TERMINAL_ID → no paseo report (plain run-claude unaffected)"
+
 echo
 echo "=== PASEO OK: opted in via .env, paseo auto-installed on launch, relay bypass"
 echo "    wired (PASEO_RELAY_IPS -> nft :443), claude launched DIRECTLY (not wrapped"
-echo "    by paseo), and the pairing-QR window brought the daemon up CONNECTED to the"
-echo "    relay — all nested. ==="
+echo "    by paseo), the pairing-QR window brought the daemon up CONNECTED to the"
+echo "    relay, and rc-notify bridges waiting/done into paseo terminal activity"
+echo "    (needs-input/idle) only inside a paseo terminal — all nested. ==="

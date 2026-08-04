@@ -75,7 +75,9 @@ Not compiled — embedded by `assets.rs` and bind-mounted at launch.
 - `container/agents.sh` — in-container agent-install registry (mirror of
   `agents.rs`).
 - `container/bin/*` — `run-claude`, `install-agents`, `rc-notify` (container→host
-  event sender), `egress-log`.
+  event sender; inside a paseo-spawned terminal it also mirrors the event to the
+  paseo daemon as terminal activity — `waiting` → needs-input via the
+  `idle_prompt` sentinel, `done` → idle), `egress-log`.
 - `Dockerfile` — the base image; `COPY`s the `container/` tree.
 
 ## Tooling / meta

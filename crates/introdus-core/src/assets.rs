@@ -154,6 +154,85 @@ mod tests {
         );
     }
 
+    /// Materialize the tree, then run the embedded `rc-notify` with a stub
+    /// `paseo` on PATH that records its argv + stdin. Returns what the stub saw
+    /// (empty when it was never invoked). `terminal` seeds `PASEO_TERMINAL_ID`.
+    #[cfg(unix)]
+    fn run_rc_notify(dir: &Path, event: &str, terminal: Option<&str>) -> String {
+        use std::os::unix::fs::PermissionsExt;
+
+        let bin = dir.join("stub-bin");
+        std::fs::create_dir_all(&bin).unwrap();
+        // Per-invocation record: the stub appends, so a shared path would let an
+        // earlier call's output masquerade as this one's.
+        let record = dir.join(format!(
+            "paseo-calls-{event}-{}.log",
+            terminal.unwrap_or("none")
+        ));
+        let stub = bin.join("paseo");
+        std::fs::write(
+            &stub,
+            "#!/usr/bin/env bash\n{ printf '%s ' \"$@\"; printf '\\n'; cat; } >> \"$RECORD\"\n",
+        )
+        .unwrap();
+        std::fs::set_permissions(&stub, std::fs::Permissions::from_mode(0o755)).unwrap();
+
+        let mut cmd = std::process::Command::new(dir.join("container/bin/rc-notify"));
+        cmd.arg(event)
+            .env("PATH", format!("{}:/usr/bin:/bin", bin.display()))
+            .env("RECORD", &record)
+            // Never touch a real /run/notify from a test (see rc-notify).
+            .env("RC_NOTIFY_TARGET", dir.join("no-such-endpoint"))
+            .env("PASEO_ACTIVITY_TOKEN", "t")
+            .env("PASEO_TERMINAL_ACTIVITY_URL", "http://127.0.0.1:1/activity")
+            .env_remove("PASEO_TERMINAL_ID");
+        if let Some(id) = terminal {
+            cmd.env("PASEO_TERMINAL_ID", id);
+        }
+        assert!(cmd.status().unwrap().success(), "rc-notify must exit 0");
+        std::fs::read_to_string(&record).unwrap_or_default()
+    }
+
+    /// rc-notify mirrors its event to paseo when — and only when — it runs
+    /// inside a terminal the paseo daemon spawned.
+    ///
+    /// The `idle_prompt` stdin sentinel is load-bearing, not decoration: paseo's
+    /// claude hook provider resolves a `Notification` to `needs-input` *only* for
+    /// that marker and registers no `PermissionRequest` hook at all, so without
+    /// it a claude permission prompt raises nothing on the phone.
+    #[test]
+    #[cfg(unix)]
+    fn ta172_rc_notify_reports_paseo_terminal_activity() {
+        let dir = std::env::temp_dir().join(format!("introdus-rcnotify-{}", std::process::id()));
+        std::fs::remove_dir_all(&dir).ok();
+        materialize(&dir).unwrap();
+
+        let waiting = run_rc_notify(&dir, "waiting", Some("term-1"));
+        assert!(
+            waiting.contains("hooks claude Notification"),
+            "waiting must report a Notification: {waiting:?}"
+        );
+        assert!(
+            waiting.contains("idle_prompt"),
+            "waiting must carry the idle_prompt sentinel on stdin: {waiting:?}"
+        );
+
+        let done = run_rc_notify(&dir, "done", Some("term-1"));
+        assert!(
+            done.contains("hooks claude Stop"),
+            "done must report Stop (→ idle): {done:?}"
+        );
+
+        // Outside a paseo terminal the bridge stays silent — an ordinary
+        // run-claude window keeps the host FIFO as its only path.
+        assert!(
+            run_rc_notify(&dir, "waiting", None).is_empty(),
+            "no PASEO_TERMINAL_ID must mean no paseo call"
+        );
+
+        std::fs::remove_dir_all(&dir).ok();
+    }
+
     #[test]
     fn ta22_materialize_writes_tree_with_modes() {
         let dir = std::env::temp_dir().join(format!("introdus-assets-{}", std::process::id()));

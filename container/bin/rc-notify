@@ -16,7 +16,13 @@
 set -u
 
 EVENT="${1:-done}"
-TARGET="/run/notify"
+# The host endpoint introdus bind-mounts. Overridable only so the unit test can
+# point it at a scratch path: the pre-commit `cargo test` often runs inside a dev
+# container where /run/notify is a LIVE FIFO, and an un-redirectable target would
+# fire a real desktop notification (or block on `timeout 5`) on every commit.
+# Not a trust boundary — the workload already chooses the event text it sends,
+# and the host re-validates everything it reads (see core::notify).
+TARGET="${RC_NOTIFY_TARGET:-/run/notify}"
 
 # Tag the event with this container's identity so the host (especially when one
 # host relays many containers' notifications) can show WHICH container finished.
@@ -37,6 +43,36 @@ elif [[ -p "$TARGET" ]]; then
     # FIFO (Linux host). Opening for write blocks until the listener is reading;
     # timeout caps the wait so a missing reader can't wedge the hook.
     timeout 5 bash -c 'printf "%s\n" "$1" > "$2"' _ "$MSG" "$TARGET" 2>/dev/null || true
+fi
+
+# ---- paseo terminal activity (phone push) -----------------------------------
+# When this hook runs inside a terminal the paseo daemon spawned, also report the
+# state to paseo so its app/phone gets a "Terminal needs input"/"Terminal
+# finished" push. paseo injects PASEO_TERMINAL_ID (plus an activity token/URL)
+# into those terminals only, so this is a no-op everywhere else — an ordinary
+# `run-claude` tmux window keeps the host FIFO as its only path.
+#
+# We report instead of letting paseo install its OWN claude hooks (its
+# `enableTerminalAgentHooks` daemon setting, default off) because that mapping
+# only treats an `idle_prompt` Notification as "needs input" and registers no
+# PermissionRequest hook at all — so a claude permission prompt would raise
+# nothing. rc-notify already fires on exactly the right events, so it reports
+# both: `waiting` is fed paseo's `idle_prompt` sentinel on stdin (the only shape
+# its claude handler resolves to needs-input), `done` maps to Stop → idle.
+#
+# The POST goes to the daemon's own listener (no egress), and `paseo hooks` caps
+# it at 500ms. Best-effort like the FIFO write above: never fails the hook.
+PASEO_CLI="${PASEO_HOOK_CLI:-paseo}"
+if [[ -n "${PASEO_TERMINAL_ID:-}" ]] && command -v "$PASEO_CLI" >/dev/null 2>&1; then
+    case "$EVENT" in
+        waiting)
+            printf '{"reason":"idle_prompt"}' \
+                | timeout 5 "$PASEO_CLI" hooks claude Notification >/dev/null 2>&1 || true
+            ;;
+        done)
+            timeout 5 "$PASEO_CLI" hooks claude Stop </dev/null >/dev/null 2>&1 || true
+            ;;
+    esac
 fi
 
 exit 0
