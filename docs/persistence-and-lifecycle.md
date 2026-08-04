@@ -48,7 +48,7 @@ its identity. In order:
 
 - `apt-get update && apt-get -y upgrade` — Ubuntu security patches, etc.
 - `mise self-update` + `mise upgrade` — mise and every managed toolchain
-  (`node@lts`, `pnpm@latest`).
+  (`node@24`, `pnpm@latest`).
 - `install-agents` — installs any newly-selected [agents](coding-agents.md), then
   updates each in place honouring its install method.
 - `nvim --headless "+Lazy! sync" +qa` — LazyVim plugin updates.

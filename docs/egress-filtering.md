@@ -91,8 +91,13 @@ IP — even a shared-CDN IP that also serves an allowlisted host — is dropped,
 Because the workload has no direct egress, proxy-aware tools are wired to the
 proxy: git-over-SSH tunnels through it via an ssh `ProxyCommand`; `apt` uses an
 `apt.conf` proxy setting; `HTTP(S)_PROXY` point HTTP-aware tools at it.
-`cloudflared`'s edge protocol can't be proxied, so its edge IPs are allowed
-directly by IP on 7844.
+Node ignores those vars by default, so `NODE_USE_ENV_PROXY=1` is set too — that
+routes node's built-in clients (`fetch`/undici, `node:http`/`https`) through the
+proxy without each tool wiring up its own agent (Node >= 24; the image pins the
+node major for it). It doesn't cover raw `net.Socket` use or a library that
+builds its own agent, and it widens nothing: proxied traffic still has to clear
+the hostname filter. `cloudflared`'s edge protocol can't be proxied, so its edge
+IPs are allowed directly by IP on 7844.
 
 ### Startup self-check
 

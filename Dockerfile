@@ -176,8 +176,13 @@ WORKDIR /home/dev
 
 RUN curl -fsSL https://mise.jdx.dev/install.sh | sh
 
+# node is pinned to a major (not `lts`) because the runtime proxy env below
+# relies on NODE_USE_ENV_PROXY, which only exists on Node >= 24. A floating
+# `node@lts` could resolve to an older line and the var would be silently
+# ignored — so pin the floor here and assert it, then bump both together.
 RUN mkdir -p "$PNPM_HOME" \
- && mise use -g node@lts pnpm@latest
+ && mise use -g node@24 pnpm@latest \
+ && node -e 'const m=+process.versions.node.split(".")[0]; if (m < 24) { console.error(`introdus: need Node >= 24 for NODE_USE_ENV_PROXY, got ${process.version}`); process.exit(1); }'
 
 # Seed LazyVim and pre-install plugins + treesitter parsers so the first
 # interactive nvim doesn't race async installers.
@@ -213,6 +218,16 @@ ENV HTTP_PROXY="http://127.0.0.1:8888" \
     https_proxy="http://127.0.0.1:8888" \
     NO_PROXY="localhost,127.0.0.1,::1" \
     no_proxy="localhost,127.0.0.1,::1"
+
+# Node ignores the *_PROXY vars above unless told to honor them. This makes
+# node's BUILT-IN clients (fetch/undici and node:http/https) route through the
+# allowlist proxy, so a Node tool that never wired up an explicit proxy agent
+# stops hitting the nft default-deny drop. Node >= 24 only (pinned above).
+#
+# This does NOT widen egress: proxied traffic still has to clear tinyproxy's
+# default-deny hostname filter and an allowed ConnectPort. It also does not
+# cover raw net.Socket use or libraries that build their own agent/dispatcher.
+ENV NODE_USE_ENV_PROXY=1
 
 # Completions for tools installed under dev (root executes dev's binaries).
 RUN HOME=/home/dev /home/dev/.local/bin/mise completion bash > /etc/bash_completion.d/mise \
