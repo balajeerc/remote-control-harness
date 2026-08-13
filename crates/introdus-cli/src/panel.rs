@@ -483,6 +483,7 @@ fn blank_status() -> Status {
         container: String::new(),
         state: "…",
         webapp_port: 0,
+        webapp_host_port: None,
         agents: String::new(),
     }
 }

@@ -10,6 +10,8 @@ use ratatui::text::{Line, Span};
 use ratatui::widgets::{Block, BorderType, Borders, List, ListItem, ListState, Paragraph, Wrap};
 use ratatui::Frame;
 
+use introdus_core::ports;
+
 use crate::ui::{
     self, confirm_options, question, text_render, visible_items, Picker, Row, Status, ACCENT, DIM,
 };
@@ -130,7 +132,10 @@ fn draw_status_panel(f: &mut Frame, area: Rect, status: &Status, busy: Option<(&
         ]),
         Line::from(vec![
             Span::styled(" webapp     ", label),
-            Span::raw(format!("port {}", status.webapp_port)),
+            Span::raw(ports::publish_desc(
+                status.webapp_port,
+                status.webapp_host_port,
+            )),
         ]),
         Line::from(vec![
             Span::styled(" agents     ", label),

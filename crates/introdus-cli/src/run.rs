@@ -6,7 +6,7 @@ use std::convert::Infallible;
 
 use anyhow::{bail, Context, Result};
 use introdus_core::podman::{self, podman};
-use introdus_core::ports::parse_extra_ports;
+use introdus_core::ports::{self, parse_extra_ports};
 
 use crate::context::LaunchContext;
 
@@ -38,7 +38,75 @@ pub fn validate_inputs(ctx: &LaunchContext) -> Result<()> {
         }
     }
     parse_extra_ports(&ctx.config.extra_ports, ctx.config.webapp_port)?;
+    check_port_conflicts(ctx)?;
     Ok(())
+}
+
+/// Fail early, with a readable message, on a host port this launch would publish
+/// that something else already holds — rootless podman otherwise dies mid-create
+/// with a bare "address already in use".
+///
+/// Only the ports the user pinned are checked: `WEBAPP_PORT` is absent because
+/// [`crate::launch::resolve_webapp_host_port`] auto-falls-back to a free host
+/// port instead of failing. A port held by *our own* container is not a conflict
+/// — a plain relaunch reuses that container, and `--recreate` frees the port
+/// before it publishes again.
+fn check_port_conflicts(ctx: &LaunchContext) -> Result<()> {
+    let c = &ctx.config;
+    let mut wanted: Vec<(u16, &str)> = parse_extra_ports(&c.extra_ports, c.webapp_port)?
+        .into_iter()
+        .map(|(host, _)| (host, "EXTRA_PORTS"))
+        .collect();
+    if c.paseo_mode.is_direct() {
+        if let Some(p) = c.paseo_port {
+            wanted.push((p, "PASEO_PORT"));
+        }
+    }
+
+    let busy: Vec<(u16, &str)> = wanted
+        .into_iter()
+        .filter(|(port, _)| !ports::port_is_free(*port))
+        .collect();
+    if busy.is_empty() {
+        return Ok(());
+    }
+
+    // Something is holding a port we want — one `podman ps` names the culprit for
+    // every busy port (empty output just downgrades the hint).
+    let ps = podman()
+        .args(["ps", "--format", ports::PS_PORTS_FORMAT])
+        .stdout()
+        .unwrap_or_default();
+    for (port, source) in busy {
+        // The legacy name counts as ours too: `lifecycle::apply` removes that
+        // container later in this same launch, so it is not a real conflict.
+        let ours = |o: &String| *o == ctx.container_name || *o == ctx.legacy_container_name;
+        match ports::port_owner(&ps, port) {
+            Some(owner) if ours(&owner) => {} // ours; freed before we publish
+            Some(owner) => bail!(
+                "host port {port} ({source}) is already published by container '{owner}'.\n\
+                 Stop that container, or remap this project: {}",
+                remap_hint(source, port)
+            ),
+            None => bail!(
+                "host port {port} ({source}) is in use by another process on this host.\n\
+                 Free it, or remap this project: {}",
+                remap_hint(source, port)
+            ),
+        }
+    }
+    Ok(())
+}
+
+/// The config edit that resolves a conflict on `port`, per the setting that asked
+/// for it.
+fn remap_hint(source: &str, port: u16) -> String {
+    if source == "PASEO_PORT" {
+        "clear PASEO_PORT from .introdus/config.env to have the next launch pick a free one"
+            .to_owned()
+    } else {
+        format!("set EXTRA_PORTS entry '{port}' to '<free-host-port>:{port}'")
+    }
 }
 
 /// Append a literal argument.
@@ -204,8 +272,12 @@ fn push_env(ctx: &LaunchContext, disable_network_block: bool, a: &mut Vec<String
 fn push_publish(ctx: &LaunchContext, a: &mut Vec<String>) -> Result<()> {
     let c = &ctx.config;
     let port = c.webapp_port;
+    // Container side is always WEBAPP_PORT (what the dev server binds and what
+    // cloudflared targets from inside); only the host side moves when the
+    // preferred port was taken.
+    let host_port = c.webapp_host_port.unwrap_or(port);
     a.push("--publish".to_owned());
-    a.push(format!("127.0.0.1:{port}:{port}"));
+    a.push(format!("127.0.0.1:{host_port}:{port}"));
     for (host, container) in parse_extra_ports(&c.extra_ports, port)? {
         a.push("--publish".to_owned());
         a.push(format!("127.0.0.1:{host}:{container}"));
@@ -413,6 +485,71 @@ mod tests {
         // direct-mode env.
         assert!(!a.iter().any(|s| s.contains(":20190:")));
         assert!(a.iter().any(|s| s == "PASEO_MODE=relay"));
+    }
+
+    #[test]
+    fn ta177_remapped_host_port_keeps_the_container_side_on_webapp_port() {
+        let mut c = ctx();
+        c.config.webapp_host_port = Some(3001);
+        let a = run_args(&c, false).unwrap();
+        assert!(a.contains(&"127.0.0.1:3001:3000".to_owned()));
+        assert!(!a.contains(&"127.0.0.1:3000:3000".to_owned()));
+        // The container still binds (and the tunnel still targets) WEBAPP_PORT.
+        assert!(a.iter().any(|s| s == "WEBAPP_PORT=3000"));
+        // Extra ports are untouched by the remap.
+        assert!(a.contains(&"127.0.0.1:8123:8123".to_owned()));
+    }
+
+    #[test]
+    fn ta177_host_port_equal_to_webapp_port_publishes_one_to_one() {
+        let mut c = ctx();
+        c.config.webapp_host_port = Some(3000);
+        let a = run_args(&c, false).unwrap();
+        assert!(a.contains(&"127.0.0.1:3000:3000".to_owned()));
+    }
+
+    /// A context whose deploy key is a real file (the shared fixture's
+    /// `/dev/null` is a char device, which `is_file()` rejects), so
+    /// `validate_inputs` gets past the key check and reaches the port checks.
+    fn ctx_with_real_key(tag: &str) -> (LaunchContext, std::path::PathBuf) {
+        let key = std::env::temp_dir().join(format!("introdus-test-key-{tag}"));
+        std::fs::write(&key, b"k").unwrap();
+        let mut c = ctx();
+        c.config.deploy_key_path = key.to_string_lossy().into_owned();
+        (c, key)
+    }
+
+    #[test]
+    fn ta178_free_ports_pass_the_conflict_check() {
+        let (mut c, key) = ctx_with_real_key("free-ports");
+        // A just-released ephemeral port can be re-taken by a test running in
+        // parallel, so retry rather than assert on one sample. (Asserting the
+        // fixture's 8123 is idle would be its own flake on a busy host.)
+        let passed = (0..10).any(|_| {
+            let probe = std::net::TcpListener::bind(("0.0.0.0", 0)).unwrap();
+            let free = probe.local_addr().unwrap().port();
+            drop(probe);
+            c.config.extra_ports = vec![free.to_string()];
+            validate_inputs(&c).is_ok()
+        });
+        std::fs::remove_file(&key).ok();
+        assert!(passed, "a free extra port must pass the conflict check");
+    }
+
+    #[test]
+    fn ta178_extra_port_held_by_another_process_is_rejected() {
+        let (mut c, key) = ctx_with_real_key("busy-port");
+        // Held open for the whole assertion — releasing it mid-test would race
+        // any other test binding an ephemeral port.
+        let held = std::net::TcpListener::bind(("0.0.0.0", 0)).unwrap();
+        let port = held.local_addr().unwrap().port();
+        c.config.extra_ports = vec![port.to_string()];
+        let err = validate_inputs(&c).unwrap_err().to_string();
+        std::fs::remove_file(&key).ok();
+        drop(held);
+        assert!(err.contains(&port.to_string()), "names the port: {err}");
+        assert!(err.contains("EXTRA_PORTS"), "names the setting: {err}");
+        assert!(err.contains("remap"), "offers a remedy: {err}");
     }
 
     #[test]

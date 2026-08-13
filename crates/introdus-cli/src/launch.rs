@@ -46,7 +46,7 @@ fn load_context_in(dir: PathBuf) -> Result<LaunchContext> {
 pub fn run_launch(lifecycle: Lifecycle, opts: LaunchOpts) -> Result<()> {
     preflight::check_launch()?;
     provision_paseo_direct()?;
-    let ctx = load_context()?;
+    let mut ctx = load_context()?;
     run::validate_inputs(&ctx)?;
 
     if lifecycle == Lifecycle::Reset {
@@ -57,7 +57,7 @@ pub fn run_launch(lifecycle: Lifecycle, opts: LaunchOpts) -> Result<()> {
     // the menu clears the marker when it first sees the container running; if the
     // bring-up fails first, clear it here so the status doesn't stick.
     mark_launching(&ctx);
-    let result = bring_up(&ctx, lifecycle, opts);
+    let result = bring_up(&mut ctx, lifecycle, opts);
     clear_launch_marker(&ctx); // only reached if bring_up failed (else it exec'd)
     result
 }
@@ -94,7 +94,7 @@ fn provision_paseo_direct() -> Result<()> {
 /// The actual bring-up. On success the `run::*_and_exec` call replaces this
 /// process with podman, so this never returns `Ok`; any earlier failure returns
 /// `Err` so the caller can clear the launch marker.
-fn bring_up(ctx: &LaunchContext, lifecycle: Lifecycle, opts: LaunchOpts) -> Result<()> {
+fn bring_up(ctx: &mut LaunchContext, lifecycle: Lifecycle, opts: LaunchOpts) -> Result<()> {
     image::ensure(ctx, false)?;
     lifecycle::apply(ctx, lifecycle)?;
     lifecycle::ensure_volume(ctx)?;
@@ -103,22 +103,74 @@ fn bring_up(ctx: &LaunchContext, lifecycle: Lifecycle, opts: LaunchOpts) -> Resu
     }
     ctx.write_allowlist()?;
 
+    // Only a create publishes ports — an existing container keeps the mapping it
+    // was created with. `lifecycle::apply` has already dropped the container on
+    // --recreate/--reset, so our own old publish is not in the way of the pick.
+    let exists = podman::container_exists(&ctx.container_name);
+    if !exists {
+        resolve_webapp_host_port(ctx)?;
+    }
+
     println!(
         "\n==> launching container {} (linux rootless)",
         ctx.container_name
     );
     println!("    repo:   {}", ctx.config.repo_url);
-    println!("    webapp: port {}", ctx.config.webapp_port);
+    println!(
+        "    webapp: {}",
+        ports::publish_desc(ctx.config.webapp_port, ctx.config.webapp_host_port)
+    );
     if opts.disable_network_block {
         println!("    WARNING: --disable-network-block — egress filtering OFF");
     }
 
-    if podman::container_exists(&ctx.container_name) {
+    if exists {
         run::start_and_exec(ctx)?;
     } else {
         run::create_and_exec(ctx, opts.disable_network_block)?;
     }
     Ok(()) // unreachable: the calls above exec into podman.
+}
+
+/// Settle the host side of the webapp publish before a create, and persist it.
+///
+/// Rootless podman is only reachable from the host through a published port, so
+/// two projects that share a `WEBAPP_PORT` would otherwise collide at create time
+/// with a bare "address already in use". `WEBAPP_PORT` stays the preference — it
+/// is used whenever it is actually free, so the common case keeps its familiar
+/// `localhost:<port>` and any `ssh -L` set up against it — and only a genuine
+/// conflict moves the host side to a free port just above it. The pick is
+/// persisted so it stays put across restarts while the conflict lasts, and is
+/// dropped again once the preferred port frees up.
+fn resolve_webapp_host_port(ctx: &mut LaunchContext) -> Result<()> {
+    let cfg = &ctx.config;
+    let preferred = cfg.webapp_port;
+    let resolved = if ports::port_is_free(preferred) {
+        None // the natural 1:1 mapping is available
+    } else if cfg.webapp_host_port.is_some_and(ports::port_is_free) {
+        cfg.webapp_host_port // keep the persisted fallback while the conflict lasts
+    } else {
+        // Don't steal a port this same container is about to publish.
+        let mut avoid: Vec<u16> = ports::parse_extra_ports(&cfg.extra_ports, preferred)?
+            .into_iter()
+            .map(|(host, _)| host)
+            .collect();
+        avoid.extend(cfg.paseo_port);
+        Some(ports::pick_free_port(preferred.saturating_add(1), &avoid)?)
+    };
+
+    if resolved == cfg.webapp_host_port {
+        return Ok(());
+    }
+    if let Some(host_port) = resolved {
+        println!(
+            "\n==> host port {preferred} is taken — publishing the webapp on {host_port} instead"
+        );
+        println!("    (inside the container the app still listens on {preferred})");
+    }
+    ctx.config.webapp_host_port = resolved;
+    ctx.config.save(&env_path(&ctx.project_dir))?;
+    Ok(())
 }
 
 /// Write the launch-in-progress marker (best-effort — a failure here just means

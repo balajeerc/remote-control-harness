@@ -56,6 +56,38 @@ webapp URL, use the [webapp tunnel](webapp-tunnel.md).
 > `EXTRA_PORTS` is applied at container-create time — changing it needs an
 > [`introdus recreate`](persistence-and-lifecycle.md).
 
+## When the webapp port is already taken
+
+Under rootless podman the host can only reach a container through a **published**
+port, so two projects that both set `WEBAPP_PORT=3000` would collide the moment
+the second one is created.
+
+introdus resolves this for you. `WEBAPP_PORT` stays the preference — it is used
+whenever it is actually free, so the usual case keeps its familiar
+`localhost:3000` and any `ssh -L` you set up against it. Only a real conflict
+moves the **host** side to the next free port, which is announced at launch and
+recorded as `WEBAPP_HOST_PORT` in the project config so it stays put across
+restarts:
+
+```
+==> host port 3000 is taken — publishing the webapp on 3001 instead
+    (inside the container the app still listens on 3000)
+```
+
+The **container** side never moves: your dev server still binds `WEBAPP_PORT`,
+and the [webapp tunnel](webapp-tunnel.md) still targets it (cloudflared runs
+*inside* the container, so it is unaffected by the host mapping). The control
+panel's header shows the mapping whenever the two differ. Once the preferred port
+frees up, the next create drops the override and goes back to `3000:3000`.
+
+`EXTRA_PORTS` host ports are **not** auto-remapped — you chose those numbers
+deliberately, so a conflict is reported before anything is created:
+
+```
+host port 8123 (EXTRA_PORTS) is already published by container 'introdus-brave-swift-otter'.
+Stop that container, or remap this project: set EXTRA_PORTS entry '8123' to '<free-host-port>:8123'
+```
+
 ## How it works
 
 `EXTRA_PORTS` parsing/validation is in

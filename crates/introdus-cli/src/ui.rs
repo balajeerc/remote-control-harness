@@ -122,6 +122,9 @@ pub struct Status {
     /// Human word for the container state: `running` / `stopped` / `not created`.
     pub state: &'static str,
     pub webapp_port: u16,
+    /// Set only when the host side of the publish had to differ from
+    /// `webapp_port` (see `Config::webapp_host_port`).
+    pub webapp_host_port: Option<u16>,
     pub agents: String,
 }
 

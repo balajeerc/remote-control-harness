@@ -109,6 +109,14 @@ pub struct Config {
     pub repo_url: String,
     pub deploy_key_path: String,
     pub webapp_port: u16,
+    /// The *host* side of the webapp publish, when it had to differ from
+    /// [`Self::webapp_port`]. Rootless podman can only be reached from the host
+    /// through a published port, so two projects sharing a `WEBAPP_PORT` would
+    /// collide at create time; launch falls back to a free host port and persists
+    /// the pick here for stability. `None` (the common case) publishes
+    /// `webapp_port` on both sides. The container side is always `webapp_port` —
+    /// that is what the dev server binds and what the tunnel targets.
+    pub webapp_host_port: Option<u16>,
 
     // ---- agents & egress ----
     pub install_agents: Vec<String>,
@@ -173,6 +181,7 @@ impl Config {
             repo_url,
             deploy_key_path,
             webapp_port,
+            webapp_host_port: None,
             install_agents: vec!["claude".to_owned()],
             install_paseo: false,
             paseo_mode: PaseoMode::Relay,
@@ -275,6 +284,13 @@ impl Config {
             webapp_port: required(&m, "WEBAPP_PORT")?
                 .parse()
                 .context("WEBAPP_PORT must be a port number")?,
+            webapp_host_port: match opt(&m, "WEBAPP_HOST_PORT") {
+                Some(v) => Some(
+                    v.parse()
+                        .context("WEBAPP_HOST_PORT must be a port number")?,
+                ),
+                None => None,
+            },
             install_agents: list_or(&m, "INSTALL_AGENTS", &["claude"]),
             install_paseo: flag(&m, "INSTALL_PASEO"),
             paseo_mode: opt(&m, "PASEO_MODE")
@@ -322,6 +338,8 @@ impl Config {
         scalar(&mut o, "REPO_URL", &self.repo_url);
         scalar(&mut o, "DEPLOY_KEY_PATH", &self.deploy_key_path);
         scalar(&mut o, "WEBAPP_PORT", &self.webapp_port.to_string());
+        let webapp_host_port_s = self.webapp_host_port.map(|p| p.to_string());
+        opt_scalar(&mut o, "WEBAPP_HOST_PORT", webapp_host_port_s.as_deref());
 
         section(
             &mut o,
@@ -552,6 +570,25 @@ mod tests {
         assert_eq!(c.canary_blocked_ip, "93.184.216.34");
         assert!(!c.expose_webapp);
         assert!(c.session_name.is_none());
+        // No remap until a launch hits a busy host port.
+        assert!(c.webapp_host_port.is_none());
+    }
+
+    #[test]
+    fn ta178_webapp_host_port_round_trips() {
+        let mut cfg = sample();
+        cfg.webapp_host_port = Some(3001);
+        let path = temp_env_path("webapp-host-port");
+        cfg.save(&path).unwrap();
+        let rendered = std::fs::read_to_string(&path).unwrap();
+        let loaded = Config::load(&path).unwrap();
+        std::fs::remove_file(&path).ok();
+        assert!(rendered.contains("WEBAPP_HOST_PORT=3001"));
+        assert_eq!(loaded.webapp_host_port, Some(3001));
+        assert_eq!(
+            loaded.webapp_port, cfg.webapp_port,
+            "container side is fixed"
+        );
     }
 
     #[test]

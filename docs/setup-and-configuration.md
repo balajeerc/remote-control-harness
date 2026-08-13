@@ -58,6 +58,7 @@ commented defaults live in [sample.env](../sample.env).
 | `REPO_URL` | Git repo to clone (use the `git@…` form). |
 | `DEPLOY_KEY_PATH` | Absolute host path to the private [deploy key](container-hardening.md#deploy-key-handling). |
 | `WEBAPP_PORT` | Port the webapp binds to inside the container (published to `127.0.0.1`). |
+| `WEBAPP_HOST_PORT` | Managed by introdus: the host side of that publish when `WEBAPP_PORT` was [already taken](host-data-and-ports.md#when-the-webapp-port-is-already-taken). |
 | `INSTALL_AGENTS` | Space-separated [agent](coding-agents.md) ids to install (`""` = none). |
 | `INSTALL_PASEO` | Install the [paseo](paseo.md) orchestrator. |
 | `WHITELIST_HOSTS` | The [egress allowlist](egress-filtering.md) — hostnames the proxy may reach. |

@@ -245,6 +245,7 @@ fn demo_status() -> Status {
         container: "introdus-brave-swift-otter".into(),
         state: "running",
         webapp_port: 5173,
+        webapp_host_port: None,
         agents: "claude, codex".into(),
     }
 }

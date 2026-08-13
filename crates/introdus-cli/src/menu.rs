@@ -330,6 +330,7 @@ fn status_of(ctx: &LaunchContext) -> ui::Status {
         container: ctx.container_name.clone(),
         state,
         webapp_port: ctx.config.webapp_port,
+        webapp_host_port: ctx.config.webapp_host_port,
         agents: ctx.config.install_agents.join(", "),
     }
 }

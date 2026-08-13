@@ -9,7 +9,7 @@ or change what one owns, update the matching line (per
 | File          | Owns |
 | ------------- | ---- |
 | `lib.rs`      | Crate root; `pub mod` list, `VERSION`, `BIN_NAME`. |
-| `config.rs`   | Typed project `Config` ⇄ `.env` round-trip (`load`/`render`/`save`), default whitelist; `PaseoMode` (relay/direct, `other()` toggle) + `PASEO_PORT`/`PASEO_PASSWORD`/`PASEO_PORT_BASE`; `set_paseo_mode` (opt-in + per-mode whitelist/port normalization + seeds the CORS default, shared by wizard/panel/switch); direct-mode browser CORS allowlist `PASEO_ALLOWED_ORIGINS` + `DEFAULT_PASEO_ORIGINS` and `set_paseo_origins_all`/`add_paseo_origin`/`paseo_allows_all_origins`. |
+| `config.rs`   | Typed project `Config` ⇄ `.env` round-trip (`load`/`render`/`save`), default whitelist; `WEBAPP_HOST_PORT` (launch-managed host side of the webapp publish when `WEBAPP_PORT` was taken); `PaseoMode` (relay/direct, `other()` toggle) + `PASEO_PORT`/`PASEO_PASSWORD`/`PASEO_PORT_BASE`; `set_paseo_mode` (opt-in + per-mode whitelist/port normalization + seeds the CORS default, shared by wizard/panel/switch); direct-mode browser CORS allowlist `PASEO_ALLOWED_ORIGINS` + `DEFAULT_PASEO_ORIGINS` and `set_paseo_origins_all`/`add_paseo_origin`/`paseo_allows_all_origins`. |
 | `env_file.rs` | Low-level `.env` I/O: `dotenvy` read, list-splitting, value quoting. |
 | `egress.rs`   | Pure allowlist logic: git-host extraction, per-host anchored regex, container whitelist assembly, tunnel edge IPs/hosts. |
 | `agents.rs`   | The coding-agent registry (`AGENTS`) + install method / yolo-flag metadata; `paseo` orchestrator constants + direct-mode passphrase generator (`generate_passphrase`) and the direct-connection display lines (`direct_url` — the paste-ready `tcp://host:port?password=…` — + `direct_connection_help`). Hand-mirrors `container/agents.sh`. |
@@ -17,7 +17,7 @@ or change what one owns, update the matching line (per
 | `assets.rs`   | The embedded container-side bash core (`include_str!`) and `materialize` into the per-container assets/build-context dir. |
 | `names.rs`    | Podman object naming (base image, per-project image tag, container, volume); deterministic suffix fallback; project→hostname slug for the container `--hostname`. |
 | `paths.rs`    | Host state dir (`$XDG_STATE_HOME/introdus`) + generated-artifact paths (allowlist, notify log, launch marker, assets dir); config dir (`$XDG_CONFIG_HOME/introdus`) + the `notify-listen` config path. |
-| `ports.rs`    | Parse/validate `EXTRA_PORTS` entries; `pick_free_port` (bind-test picker) for the direct-mode paseo daemon port. |
+| `ports.rs`    | Parse/validate `EXTRA_PORTS` entries; the host-port availability primitives — `port_is_free` (bind test), `pick_free_port` (picker built on it, for the direct-mode paseo daemon port and the webapp host-port fallback), `port_owner` + `PS_PORTS_FORMAT` (which container publishes a busy host port, for the conflict message), and `publish_desc` (how a webapp remap reads, shared by the launch line and the panel header). |
 | `session.rs`  | Whimsical deterministic tmux session-name generation. |
 | `notify.rs`   | The notification trust boundary: wire-format parse, event whitelist, label sanitization. |
 | `podman.rs`   | Thin `podman` command constructors + existence/state probes. |
@@ -35,7 +35,7 @@ or change what one owns, update the matching line (per
 | `wizard.rs`      | First-run setup wizard (inline ratatui modals) → writes `.env`. |
 | `preflight.rs`   | Host checks: rootless podman + pasta (+ tmux for the session). |
 | `context.rs`     | `LaunchContext` — everything the launch path derives from a `Config` (names, assets dir, allowlist, tunnel IPs); per-project config path resolution (`.introdus/config.env`, legacy `./.env` fallback + one-time migration offer). |
-| `launch.rs`      | Top-level launch orchestration (preflight → image → lifecycle → run); `verify`/`update`/`rebuild-base`. |
+| `launch.rs`      | Top-level launch orchestration (preflight → image → lifecycle → run); `verify`/`update`/`rebuild-base`; `resolve_webapp_host_port` — settles the host side of the webapp publish just before a create (prefers `WEBAPP_PORT`, falls back to a free port above it when taken, persists as `WEBAPP_HOST_PORT`, clears it once the preference frees up). |
 | `image.rs`       | Base-image build/tag/prune; binary-newer-than-image staleness. |
 | `lifecycle.rs`   | Container/volume lifecycle: cleanup, `--recreate`, `--reset` (dirty-git guard + typed confirm). |
 | `run.rs`         | The full `podman run` flag/env/mount set; `--verify` self-check; `--update` in-container refresh. |
