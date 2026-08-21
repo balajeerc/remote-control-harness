@@ -280,6 +280,7 @@ fn demo_menu_rows() -> Vec<Row> {
             ('a', "Launch an installed agent (tmux window)"),
             ('i', "Install a coding agent"),
             ('p', "(Re)Install paseo (control agents from your phone)"),
+            ('U', "Update paseo daemon (safe 7-day release delay)"),
             ('P', "Show paseo pairing QR code (connect your phone)"),
             (
                 'o',
@@ -341,7 +342,7 @@ fn shot_control_panel() {
         String::new(),
         "  (also written to the dev-container log)".to_owned(),
     ];
-    // sel 11 = "Show tunnel URL" (the 12th selectable item), matching the output.
+    // sel 12 = "Show tunnel URL" (the 13th selectable item), matching the output.
     // Height fits the full five-section menu + status header + footer.
     capture(
         "control-panel",
@@ -354,7 +355,7 @@ fn shot_control_panel() {
                 rows: &rows,
                 query: "",
                 filtering: false,
-                sel: 11,
+                sel: 12,
             };
             draw_frame(f, &m, &out, None, None);
         },
@@ -372,7 +373,7 @@ fn shot_control_panel_confirm() {
                  /home/dev volume (repo, node_modules, toolchains)?",
         answer: false,
     };
-    // sel 20 = "Destroy/Reset the container", matching the prompt.
+    // sel 21 = "Destroy/Reset the container", matching the prompt.
     capture(
         "control-panel-confirm",
         "introdus — confirmation prompt",
@@ -384,7 +385,7 @@ fn shot_control_panel_confirm() {
                 rows: &rows,
                 query: "",
                 filtering: false,
-                sel: 20,
+                sel: 21,
             };
             draw_frame(f, &m, &out, Some(&popup), None);
         },

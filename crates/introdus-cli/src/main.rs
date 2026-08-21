@@ -157,6 +157,8 @@ enum Command {
         #[arg(long)]
         recreate: bool,
     },
+    /// Safely update paseo to a release at least seven days old and restart its daemon.
+    UpdatePaseo,
     /// Print the paseo pairing URL for the running daemon.
     PaseoUrl,
     /// Allow a browser origin to reach the direct-mode paseo daemon (CORS). The
@@ -241,6 +243,7 @@ fn main() -> Result<()> {
         Command::InstallAgent { agents, restart } => cli_actions::install_agent(&agents, restart),
         Command::Agent { id, yolo } => cli_actions::agent(&id, yolo),
         Command::InstallPaseo { recreate } => cli_actions::install_paseo(recreate),
+        Command::UpdatePaseo => cli_actions::update_paseo(),
         Command::PaseoUrl => cli_actions::paseo_url(),
         Command::PaseoAllowOrigin { origin } => cli_actions::paseo_allow_origin(&origin),
         Command::DevShell => cli_actions::shell(false),

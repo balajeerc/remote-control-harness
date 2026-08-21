@@ -1,9 +1,9 @@
 //! The paseo orchestrator control-panel actions, split out of
 //! [`crate::menu_actions`] to keep that file within its line budget. Owns the
-//! **(re)install + relay⇄direct mode switch** (`install_paseo`), the "connect"
-//! action (`paseo_qr` — a pairing QR in relay mode, the paste-ready
-//! `tcp://host:port?password=…` URL in direct mode), and the shared opt-in cores
-//! the headless [`crate::cli_actions`] reuses.
+//! **(re)install + relay⇄direct mode switch** (`install_paseo`), the safe daemon
+//! package update (`update_paseo`), the "connect" action (`paseo_qr` — a pairing
+//! QR in relay mode, the paste-ready `tcp://host:port?password=…` URL in direct
+//! mode), and the shared opt-in cores the headless [`crate::cli_actions`] reuses.
 
 use std::time::Duration;
 
@@ -17,6 +17,54 @@ use crate::frontend::Frontend;
 use crate::menu_actions as act;
 use crate::panel::Ui;
 use crate::util::shell_quote;
+
+/// Oldest pnpm major that supports every supply-chain control used by the
+/// paseo updater (strict release-age handling, missing-time rejection,
+/// trustPolicy, and exotic-subdependency blocking).
+const MIN_SAFE_PNPM_MAJOR: u64 = 11;
+
+/// A seven-day quarantine, expressed in pnpm's minutes.
+const PASEO_MIN_RELEASE_AGE_MINUTES: &str = "10080";
+
+/// Root-owned, empty pnpm config directory used by the updater. The unprivileged
+/// workload cannot seed it with a global pnpmfile, registry override, or weaker
+/// policy before the user invokes an update.
+const PASEO_UPDATE_CONFIG_DIR: &str = "/run/introdus-pnpm-update-config";
+
+/// Arguments for a deliberately fail-closed global Paseo update. Keep these as
+/// separate argv tokens: no project or package-controlled text is evaluated by
+/// a shell.
+///
+/// `--ignore-scripts` blocks package lifecycle scripts, while
+/// `ignore-pnpmfile` closes the separate executable-hook path that pnpm's docs
+/// explicitly say `ignoreScripts` does not cover. The remaining settings make
+/// the seven-day delay strict (including registries that omit publish times),
+/// reject trust downgrades and exotic transitive sources, pin the public npm
+/// registry for both the default and @getpaseo scope, and prevent less-safe
+/// user/project settings from overriding those choices.
+const PASEO_UPDATE_ARGS: &[&str] = &[
+    "update",
+    "--global",
+    "--latest",
+    "--yes",
+    "--ignore-scripts",
+    "--config.ignore-scripts=true",
+    "--config.ignore-pnpmfile=true",
+    "--config.dangerously-allow-all-builds=false",
+    "--config.minimum-release-age=10080",
+    "--config.minimum-release-age-strict=true",
+    "--config.minimum-release-age-ignore-missing-time=false",
+    "--config.trust-policy=no-downgrade",
+    "--config.block-exotic-subdeps=true",
+    "--config.userconfig=/dev/null",
+    "--config.registry=https://registry.npmjs.org/",
+    "--config.@getpaseo:registry=https://registry.npmjs.org/",
+    "--config.strict-ssl=true",
+    "--config.verify-store-integrity=true",
+    "--config.strict-store-pkg-content-check=true",
+    "--config.side-effects-cache=false",
+    "--config.prefer-offline=false",
+];
 
 /// Shell snippet that ensures the paseo daemon is running, for prefixing an
 /// interactive window command. `paseo daemon status` exits 0 whether the daemon
@@ -51,6 +99,95 @@ pub fn install_paseo(ctx: &LaunchContext, ui: &mut Ui) -> Result<()> {
         return switch_mode(ctx, ui);
     }
     first_install(ctx, ui)
+}
+
+/// Panel action: confirm, safely update the global Paseo package, then restart
+/// its daemon so the running service uses the new code.
+pub fn update_paseo(ctx: &LaunchContext, ui: &mut Ui) -> Result<()> {
+    require_paseo_installed(ctx)?;
+    if !ui.confirm(
+        "Update paseo to the newest release that is at least 7 days old, then restart its daemon?",
+        false,
+    )? {
+        return Ok(());
+    }
+    run_update_paseo(ctx, ui)
+}
+
+/// Safely update Paseo and restart its daemon. Shared by the panel and the
+/// headless `update-paseo` subcommand.
+pub(crate) fn run_update_paseo(ctx: &LaunchContext, f: &mut impl Frontend) -> Result<()> {
+    require_paseo_installed(ctx)?;
+
+    let pnpm_version = act::exec(ctx, Some("dev"))
+        .args(["pnpm", "--version"])
+        .stdout()?;
+    require_safe_pnpm(&pnpm_version)?;
+
+    // Isolate pnpm from mutable global config in /home/dev. A compromised
+    // workload is the threat model, so the directory must be created by root
+    // under root-owned /run, then only read by the dev-user pnpm process.
+    act::exec(ctx, None)
+        .args([
+            "install",
+            "-d",
+            "-m",
+            "0755",
+            "-o",
+            "root",
+            "-g",
+            "root",
+            PASEO_UPDATE_CONFIG_DIR,
+        ])
+        .run()?;
+
+    f.log(format!(
+        "  updating paseo with pnpm {pnpm_version}: lifecycle/pnpmfile scripts blocked; \
+         releases <7 days ({PASEO_MIN_RELEASE_AGE_MINUTES} minutes) old rejected"
+    ));
+    f.run_task(
+        "safe paseo package update",
+        act::exec(ctx, Some("dev"))
+            .args([
+                "env",
+                "HOME=/home/dev",
+                "XDG_CONFIG_HOME=/run/introdus-pnpm-update-config",
+            ])
+            .arg("pnpm")
+            .args(PASEO_UPDATE_ARGS)
+            .arg(agents::paseo::SPEC),
+    )?;
+    f.run_task(
+        "restart paseo daemon",
+        act::exec(ctx, Some("dev")).args([agents::paseo::CMD, "daemon", "restart"]),
+    )?;
+    f.log("  paseo updated and its daemon restarted.");
+    Ok(())
+}
+
+fn require_paseo_installed(ctx: &LaunchContext) -> Result<()> {
+    act::require_running(ctx)?;
+    if !ctx.config.install_paseo || !act::container_has_cmd(ctx, agents::paseo::CMD) {
+        bail!("paseo isn't installed — run `introdus install-paseo` first");
+    }
+    Ok(())
+}
+
+/// Fail closed when an old pnpm would silently ignore one of the updater's
+/// security settings.
+fn require_safe_pnpm(version: &str) -> Result<()> {
+    let major = version
+        .trim()
+        .split('.')
+        .next()
+        .and_then(|part| part.parse::<u64>().ok());
+    if major.is_some_and(|major| major >= MIN_SAFE_PNPM_MAJOR) {
+        return Ok(());
+    }
+    bail!(
+        "safe paseo updates require pnpm >= {MIN_SAFE_PNPM_MAJOR} (found {version:?}); \
+         run `introdus update` to refresh the container toolchain first"
+    )
 }
 
 /// First-time paseo opt-in: choose the connection mode, persist it, then recreate
@@ -313,4 +450,46 @@ pub(crate) fn run_install_paseo(ctx: &LaunchContext, f: &mut impl Frontend) -> R
 pub(crate) fn paseo_opt_in(config: &mut Config) {
     let mode = config.paseo_mode;
     config.set_paseo_mode(mode);
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn ta180_paseo_update_is_fail_closed_and_script_free() {
+        let minimum_age = format!("--config.minimum-release-age={PASEO_MIN_RELEASE_AGE_MINUTES}");
+        let required = [
+            "--ignore-scripts",
+            "--yes",
+            "--config.ignore-pnpmfile=true",
+            "--config.dangerously-allow-all-builds=false",
+            minimum_age.as_str(),
+            "--config.minimum-release-age-strict=true",
+            "--config.minimum-release-age-ignore-missing-time=false",
+            "--config.trust-policy=no-downgrade",
+            "--config.block-exotic-subdeps=true",
+            "--config.userconfig=/dev/null",
+            "--config.@getpaseo:registry=https://registry.npmjs.org/",
+            "--config.strict-ssl=true",
+            "--config.verify-store-integrity=true",
+            "--config.strict-store-pkg-content-check=true",
+            "--config.side-effects-cache=false",
+            "--config.prefer-offline=false",
+        ];
+        for arg in required {
+            assert!(
+                PASEO_UPDATE_ARGS.contains(&arg),
+                "missing safe pnpm arg: {arg}"
+            );
+        }
+    }
+
+    #[test]
+    fn ta180_paseo_update_rejects_pnpm_without_required_controls() {
+        assert!(require_safe_pnpm("11.0.0").is_ok());
+        assert!(require_safe_pnpm("12.3.1").is_ok());
+        assert!(require_safe_pnpm("10.26.0").is_err());
+        assert!(require_safe_pnpm("not-a-version").is_err());
+    }
 }

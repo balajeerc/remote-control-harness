@@ -207,6 +207,12 @@ pub fn install_paseo(recreate: bool) -> Result<()> {
     Ok(())
 }
 
+/// Update the installed paseo package under the strict shared supply-chain
+/// policy, then restart its daemon to load the new version.
+pub fn update_paseo() -> Result<()> {
+    menu_paseo::run_update_paseo(&ctx()?, &mut StdioFrontend)
+}
+
 /// Print the paseo pairing URL (the QR's payload) for the running daemon, so you
 /// can open it on a phone/desktop without scanning a QR from a terminal.
 pub fn paseo_url() -> Result<()> {

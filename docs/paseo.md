@@ -73,9 +73,21 @@ With paseo on:
 - In direct mode it also gains **"Add a paseo client origin"** — see below.
 
 Installed via `pnpm add -g @getpaseo/cli`. The headless equivalents are
-`introdus install-paseo`, `introdus paseo-url` (prints the pairing URL, or the
-direct URL in direct mode — no timed hiding there, since the output *is* the
-point of the subcommand), and `introdus paseo-allow-origin <url>`.
+`introdus install-paseo`, `introdus update-paseo`, `introdus paseo-url` (prints
+the pairing URL, or the direct URL in direct mode — no timed hiding there, since
+the output *is* the point of the subcommand), and
+`introdus paseo-allow-origin <url>`.
+
+The panel's **"Update paseo daemon"** (`U`) and `introdus update-paseo` update
+the global `@getpaseo/cli` package, then restart the daemon only after the
+package update succeeds. This path fails closed and requires pnpm 11 or newer:
+package lifecycle scripts and `.pnpmfile` executable hooks are disabled (using
+an isolated, root-owned config directory), npmjs is pinned as the registry, TLS
+and store-integrity verification stay enabled, cached lifecycle-script side
+effects are disabled, exotic transitive sources and publisher-trust downgrades
+are rejected, and pnpm's `minimumReleaseAge` is set to `10080` minutes (seven
+days) in strict mode. Missing registry publish-time metadata is an error rather
+than an age-check bypass.
 
 ## Browser clients & CORS
 

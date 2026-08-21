@@ -29,7 +29,8 @@ Inside the panel:
 - **Press an item's hotkey** (the accent-coloured letter in `[ ]` beside it) to
   run it directly — no navigation needed. Hotkeys are **case-sensitive**, so a
   *shifted* key is a distinct, related action: `[T]` root vs `[t]` dev terminal,
-  `[P]` paseo-QR vs `[p]` install-paseo, `[N]` test-notification vs `[n]` ntfy.
+  `[P]` paseo-QR vs `[p]` install-paseo, `[U]` update-paseo vs `[u]` tunnel URL,
+  `[N]` test-notification vs `[n]` ntfy.
 - **↑/↓** move the selection, **Enter** runs the highlighted action.
 - **`/`** opens the filter; **type** to narrow the list, **Backspace** clears a
   character, **Esc** leaves the filter. (The filter mirrors the
@@ -54,7 +55,7 @@ Each action's hotkey is shown in parentheses.
 | Group | Actions (hotkey) |
 | ----- | ------- |
 | **$ Access container** | open a dev (`t`) / root (`T`) terminal, copy a host file/folder in (`c`) |
-| **✦ Agents** | launch an installed agent (`a`), [install a coding agent](coding-agents.md) (`i`), install [paseo](paseo.md) (`p`), show its pairing QR — or, in direct mode, its [connection URL](paseo.md) (`P`) |
+| **✦ Agents** | launch an installed agent (`a`), [install a coding agent](coding-agents.md) (`i`), install [paseo](paseo.md) (`p`), safely update its daemon (`U`), show its pairing QR — or, in direct mode, its [connection URL](paseo.md) (`P`), add a direct-mode browser origin (`o`) |
 | **⇅ Networking & egress security** | list recently [blocked egress](egress-filtering.md) URLs (`b`), add hostnames to the [allowlist](egress-filtering.md#adjusting-the-allowlist) (`w`), (re)expose the app via [Cloudflare tunnel](webapp-tunnel.md) (`e`), show the [tunnel URL](webapp-tunnel.md) (`u`), enable [ntfy push](notifications.md#phone-push-ntfysh) (`n`) |
 | **? Troubleshooting** | refresh container status (`f`), send a test notification (`N`), show the notify log (`l`), restart the [notification service](notifications.md) (`v`) |
 | **↻ Container lifecycle** | restart (`s`), [recreate](persistence-and-lifecycle.md) (`x`), detach — keep the container running (`h`), [destroy/reset](persistence-and-lifecycle.md) — wipe the volume (`d`), quit — stops the container (`q`) |
@@ -62,7 +63,7 @@ Each action's hotkey is shown in parentheses.
 Every menu action (bar the pure-UI ones — refresh, detach, quit) also has a
 headless `introdus` subcommand, so you can script anything you'd otherwise click:
 `tunnel-url`, `blocked-egress`, `allow <host…>`, `expose-webapp`, `ntfy`,
-`install-agent <id…>`, `agent <id>`, `install-paseo`, `paseo-url` (prints the
+`install-agent <id…>`, `agent <id>`, `install-paseo`, `update-paseo`, `paseo-url` (prints the
 pairing URL instead of a QR, or the direct-mode connection URL),
 `dev-shell`/`root-shell`, `test-notify`,
 `notify-log`, `restart-notify`, `restart`, and `stop`. The prompts the panel

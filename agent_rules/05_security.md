@@ -108,6 +108,15 @@ methods (`crates/introdus-core/src/agents.rs`, mirrored in `container/agents.sh`
 Each agent declares the extra egress hosts it needs, appended to the allowlist
 only when selected — no agent widens egress unless you install it.
 
+The dedicated Paseo update (`introdus update-paseo` / the panel's `U` action)
+uses pnpm's stricter supply-chain controls and refuses pnpm older than v11. It
+blocks lifecycle scripts, cached script side effects, and `.pnpmfile` hooks
+(under an isolated root-owned config directory); enforces a strict seven-day
+`minimumReleaseAge` (including failing when publish-time metadata is absent);
+rejects publisher-trust downgrades and exotic transitive sources; pins the
+`@getpaseo` scope to the TLS npmjs registry; and keeps store-integrity checks on.
+The running daemon is restarted only after the package update succeeds.
+
 ## 5. Deploy-key handling
 
 A per-project deploy key lives on the **host**, mounted read-only, and is copied
